@@ -5,7 +5,7 @@ A grid-based multi-agent simulation system demonstrating autonomous robot coordi
 ## Team Members
 
 - **Abdul Haseeb** - abdlhaseeb17@gmail.com
-- **Raja Ammar** - rajaammar@gmail.com
+- **Raja Ammar** - rajammarahmd@gmail.com
 
 **Course**: AI Lab (5th Semester)  
 **Status**: Mid-term Implementation

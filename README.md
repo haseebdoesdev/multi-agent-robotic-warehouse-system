@@ -32,6 +32,7 @@ A grid-based multi-agent simulation system demonstrating autonomous robot coordi
 - Both text-based and graphical visualization modes
 
 ---
+![Demo](simulation.gif)
 
 ## Project Structure
 

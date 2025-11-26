@@ -11,6 +11,10 @@ class CoordinationManager:
         self.robots: List[Robot] = []
         self.time_step = 0
         self.conflict_count = 0
+        # Module 5/6 TODO:
+        # - When collecting per-step metrics, consider appending a lightweight
+        #   trace object here per timestep (positions, statuses, conflicts).
+        # - For scalability experiments, optionally parallelize planning calls.
     
     def add_robot(self, robot: Robot):
         self.robots.append(robot)
@@ -91,6 +95,11 @@ class CoordinationManager:
         any_movement = False
         
         self.resolve_conflicts()
+        # Module 4 TODO:
+        # - If UNCERTAINTY is enabled, at this point gather sensor observations
+        #   from robots and update the probabilistic obstacle map.
+        # - Optionally commit high-probability obstacles to the environment
+        #   before movement to trigger early replanning.
         
         for robot in self.robots:
             if robot.move(self.warehouse):
@@ -108,6 +117,9 @@ class CoordinationManager:
             if robot.target_package is not None and not robot.path:
                 if robot.plan_path(self.warehouse):
                     planned_count += 1
+            # Module 6 TODO:
+            # - If PARALLEL_COORDINATION_ENABLED, dispatch robot.plan_path
+            #   computations to a thread/process pool and collect results.
         
         return planned_count
     

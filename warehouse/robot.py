@@ -22,6 +22,11 @@ class Robot:
         self.total_distance_traveled = 0
         self.wait_counter = 0
     
+    # Module 4 TODO:
+    # - When UNCERTAINTY is enabled, consider calling a sensor update here or
+    #   during move() to feed observations into a probabilistic obstacle map.
+    # - Add a light-weight hook to trigger replanning if predicted blockage risk
+    #   along the current path exceeds a threshold from config.
     def plan_path(self, warehouse: Warehouse, target: Optional[Tuple[int, int]] = None) -> bool:
         if target is None:
             target = self.target_package
@@ -64,6 +69,10 @@ class Robot:
                 self.status = self.STATUS_MOVING
                 return True
             else:
+                # Module 4 TODO:
+                # - Dynamic replanning: when the next step is blocked due to a new obstacle
+                #   or committed uncertainty, initiate a replan to current target.
+                # - Optionally increment a "replan counter" metric for later reporting.
                 self.status = self.STATUS_IDLE
                 return False
         else:

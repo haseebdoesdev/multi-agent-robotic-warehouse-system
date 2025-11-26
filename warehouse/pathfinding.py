@@ -43,6 +43,10 @@ def a_star(start: Tuple[int, int], goal: Tuple[int, int], warehouse: Warehouse,
         return [start]
     
     heuristic_func = manhattan_distance if heuristic == 'manhattan' else euclidean_distance
+    # Module 4 TODO:
+    # - If using a probabilistic obstacle layer, consider augmenting the
+    #   heuristic with a risk penalty term to bias away from risky cells.
+    #   Example (later): h_cost = heuristic + lambda * risk(cell)
     
     open_set = []
     closed_set: Set[Tuple[int, int]] = set()

@@ -44,6 +44,9 @@ class PygameUI:
         self.small_font = pygame.font.Font(None, 20)
         
         self.running = True
+        # Module 5 TODO:
+        # - Initialize UI interactivity state here (e.g., show_paths flag,
+        #   dynamic FPS, mode toggles). Optionally enable pygame.mixer for sounds.
     
     def handle_events(self) -> bool:
         for event in pygame.event.get():
@@ -54,6 +57,12 @@ class PygameUI:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                     return False
+                # Module 5 TODO:
+                # - Map keys to interactions (toggle paths, inc/dec FPS, restart).
+                # - Example: 'p' to toggle path overlay; '+'/'-' to adjust speed.
+            # Module 5 TODO:
+            # - Handle mouse events to place/remove obstacles during runtime.
+            #   Translate mouse position to grid cell and toggle obstacle state.
         return True
     
     def draw_grid(self):
@@ -88,6 +97,9 @@ class PygameUI:
                         path_surface,
                         (x * self.cell_size, y * self.cell_size + self.panel_height)
                     )
+        # Module 5 TODO:
+        # - Add simple animation: fade or pulsing effect along the planned path,
+        #   or animate only the frontier/next few steps for clarity.
     
     def draw_packages(self):
         for package_pos in self.warehouse.packages:

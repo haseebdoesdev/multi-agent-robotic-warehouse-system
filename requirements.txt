@@ -1,4 +1,10 @@
+# Core dependencies
 numpy>=1.21.0
 pygame>=2.0.0
 
+# Reporting and visualization (optional but recommended)
+matplotlib>=3.7.0
 
+# Note: The following are optional and used for specific features:
+# - gymnasium: For standardized RL environment interface (optional)
+# - pandas: For enhanced data analysis in experiments (optional)

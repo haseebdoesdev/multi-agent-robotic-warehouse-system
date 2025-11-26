@@ -138,9 +138,10 @@ def run_simulation():
     print("\n" + "-" * 60)
     print("CONTROLS:")
     print("  SPACE - Start/Pause simulation")
+    print("  . (period) - Step once when paused")
     print("  1/2/3/4 - Switch modes (Obstacle/Package/Robot/Erase)")
     print("  C - Clear grid  |  P - Toggle paths  |  H - Help")
-    print("  +/- - Adjust speed  |  ESC - Exit")
+    print("  +/- - Adjust speed  |  S - Settings  |  ESC - Exit")
     print("-" * 60)
     print("\nDraw your warehouse layout, then press SPACE to start!")
     
@@ -161,8 +162,9 @@ def run_simulation():
             for robot in ui.robots:
                 coordinator.add_robot(robot)
         
-        # Only run simulation logic when not paused
-        if not ui.is_paused() and not simulation_complete:
+        # Only run simulation logic when not paused OR step mode
+        should_run = (not ui.is_paused()) or ui.should_step()
+        if should_run and not simulation_complete:
             # Assign packages
             if warehouse.packages:
                 coordinator.assign_packages(warehouse.packages)

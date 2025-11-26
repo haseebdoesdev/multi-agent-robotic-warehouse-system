@@ -1,4 +1,5 @@
 import pygame
+import random
 from typing import List, Dict, Tuple, Optional
 from warehouse.environment import Warehouse
 from warehouse.robot import Robot
@@ -73,12 +74,26 @@ class PygameUI:
         self.edit_mode = self.MODE_OBSTACLE
         self.show_paths = True
         self.show_help = False
+        self.show_settings = False
         self.mouse_held = False
         self.hover_cell: Optional[Tuple[int, int]] = None
+        self.hover_button: Optional[Dict] = None  # For button hover effect
         self.next_robot_id = len(robots)
+        self.step_once = False  # For step-by-step mode
+        
+        # Grid size options
+        self.grid_sizes = [8, 10, 12, 15, 20, 25, 30]
+        self.current_grid_size_idx = self.grid_sizes.index(warehouse.width) if warehouse.width in self.grid_sizes else 1
+        
+        # FPS options
+        self.fps_options = [1, 2, 4, 6, 8, 10, 15, 20, 30]
+        self.current_fps_idx = self.fps_options.index(fps) if fps in self.fps_options else 2
         
         # Track placed robots for editing
         self.placed_robots: List[Robot] = list(robots)
+        
+        # Callback for grid resize (set by main_gui.py)
+        self.on_grid_resize = None
         
         # Toolbar buttons
         self.buttons = self._create_buttons()
@@ -86,9 +101,9 @@ class PygameUI:
     def _create_buttons(self) -> List[Dict]:
         """Create toolbar buttons."""
         buttons = []
-        button_width = 70
+        button_width = 65
         button_height = 35
-        spacing = 4
+        spacing = 3
         x = spacing
         y = 8
         
@@ -100,6 +115,7 @@ class PygameUI:
             ('Erase', self.MODE_ERASE, pygame.K_4),
             ('Random', 'random', pygame.K_r),
             ('Clear', 'clear', pygame.K_c),
+            ('Settings', 'settings', pygame.K_s),
             ('Help', 'help', pygame.K_h),
         ]
         
@@ -195,12 +211,20 @@ class PygameUI:
         
         if mode == 'clear':
             self._clear_grid()
+        elif mode == 'random':
+            self._generate_random()
         elif mode == 'help':
             self.show_help = not self.show_help
+            self.show_settings = False
+        elif mode == 'settings':
+            self.show_settings = not self.show_settings
+            self.show_help = False
         elif mode == self.MODE_RUN:
             self.paused = not self.paused
             if not self.paused:
                 self.edit_mode = self.MODE_RUN
+                self.show_settings = False
+                self.show_help = False
         else:
             self.edit_mode = mode
             if mode != self.MODE_RUN:
@@ -221,6 +245,98 @@ class PygameUI:
         self.placed_robots.clear()
         self.next_robot_id = 0
     
+    def _adjust_fps(self, delta: int):
+        """Adjust FPS and sync with settings index."""
+        self.fps = max(1, min(30, self.fps + delta))
+        # Sync with fps_options index
+        if self.fps in self.fps_options:
+            self.current_fps_idx = self.fps_options.index(self.fps)
+        else:
+            # Find closest
+            closest_idx = 0
+            closest_diff = abs(self.fps_options[0] - self.fps)
+            for i, fps_val in enumerate(self.fps_options):
+                diff = abs(fps_val - self.fps)
+                if diff < closest_diff:
+                    closest_diff = diff
+                    closest_idx = i
+            self.current_fps_idx = closest_idx
+    
+    def _generate_random(self):
+        
+        # Clear everything first
+        self._clear_grid()
+        
+        width = self.warehouse.width
+        height = self.warehouse.height
+        
+        # Random parameters
+        obstacle_density = random.uniform(0.10, 0.25)
+        num_packages = random.randint(3, max(3, min(10, (width * height) // 20)))
+        num_robots = random.randint(2, max(2, min(5, (width * height) // 30)))
+        
+        # Place random obstacles
+        num_obstacles = int(width * height * obstacle_density)
+        
+        placed_obstacles = 0
+        attempts = 0
+        while placed_obstacles < num_obstacles and attempts < num_obstacles * 3:
+            x = random.randint(0, width - 1)
+            y = random.randint(0, height - 1)
+            
+            if self.warehouse.grid[y, x] == Warehouse.EMPTY:
+                self.warehouse.grid[y, x] = Warehouse.OBSTACLE
+                placed_obstacles += 1
+            attempts += 1
+        
+        # Place random packages
+        placed_packages = 0
+        attempts = 0
+        while placed_packages < num_packages and attempts < num_packages * 10:
+            x = random.randint(0, width - 1)
+            y = random.randint(0, height - 1)
+            
+            if self.warehouse.grid[y, x] == Warehouse.EMPTY:
+                self.warehouse.grid[y, x] = Warehouse.PACKAGE
+                self.warehouse.packages.append((x, y))
+                placed_packages += 1
+            attempts += 1
+        
+        # Place robots at RANDOM valid positions
+        used_positions = set()
+        for i in range(num_robots):
+            pos = None
+            attempts = 0
+            
+            # Try to find a random valid position
+            while attempts < 100:
+                x = random.randint(0, width - 1)
+                y = random.randint(0, height - 1)
+                
+                if ((x, y) not in used_positions and 
+                    self.warehouse.is_valid_move(x, y, ignore_packages=True)):
+                    pos = (x, y)
+                    break
+                attempts += 1
+            
+            if pos is None:
+                # Fallback: find any valid position
+                for y in range(height):
+                    for x in range(width):
+                        if ((x, y) not in used_positions and 
+                            self.warehouse.is_valid_move(x, y, ignore_packages=True)):
+                            pos = (x, y)
+                            break
+                    if pos:
+                        break
+            
+            if pos:
+                new_robot = Robot(robot_id=self.next_robot_id, start_position=pos)
+                self.placed_robots.append(new_robot)
+                self.robots.append(new_robot)
+                used_positions.add(pos)
+                self.next_robot_id += 1
+    
     def handle_events(self) -> bool:
         """Handle pygame events. Returns False if should quit."""
         for event in pygame.event.get():
@@ -239,28 +355,50 @@ class PygameUI:
                 elif event.key == pygame.K_1:
                     self.edit_mode = self.MODE_OBSTACLE
                     self.paused = True
+                    self.show_help = False
+                    self.show_settings = False
                 elif event.key == pygame.K_2:
                     self.edit_mode = self.MODE_PACKAGE
                     self.paused = True
+                    self.show_help = False
+                    self.show_settings = False
                 elif event.key == pygame.K_3:
                     self.edit_mode = self.MODE_ROBOT
                     self.paused = True
+                    self.show_help = False
+                    self.show_settings = False
                 elif event.key == pygame.K_4:
                     self.edit_mode = self.MODE_ERASE
                     self.paused = True
+                    self.show_help = False
+                    self.show_settings = False
                 elif event.key == pygame.K_c:
                     self._clear_grid()
+                elif event.key == pygame.K_r:
+                    self._generate_random()
+                elif event.key == pygame.K_s:
+                    self.show_settings = not self.show_settings
+                    self.show_help = False
                 elif event.key == pygame.K_p:
                     self.show_paths = not self.show_paths
                 elif event.key == pygame.K_h:
                     self.show_help = not self.show_help
+                    self.show_settings = False
+                elif event.key == pygame.K_PERIOD:
+                    # Step mode: advance one step when paused
+                    if self.paused:
+                        self.step_once = True
                 elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
-                    self.fps = min(30, self.fps + 1)
+                    self._adjust_fps(1)
                 elif event.key == pygame.K_MINUS:
-                    self.fps = max(1, self.fps - 1)
+                    self._adjust_fps(-1)
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
+                
+                # Check settings overlay first
+                if self.show_settings and self._handle_settings_click(mouse_pos):
+                    continue
                 
                 # Check toolbar buttons
                 for button in self.buttons:
@@ -268,11 +406,12 @@ class PygameUI:
                         self._handle_button_click(button)
                         break
                 else:
-                    # Check grid cell
-                    cell = self._get_cell_from_mouse(mouse_pos)
-                    if cell:
-                        self._handle_cell_click(cell, event.button)
-                        self.mouse_held = True
+                    # Check grid cell (only if not showing overlays)
+                    if not self.show_settings and not self.show_help:
+                        cell = self._get_cell_from_mouse(mouse_pos)
+                        if cell:
+                            self._handle_cell_click(cell, event.button)
+                            self.mouse_held = True
             
             elif event.type == pygame.MOUSEBUTTONUP:
                 self.mouse_held = False
@@ -280,6 +419,13 @@ class PygameUI:
             elif event.type == pygame.MOUSEMOTION:
                 mouse_pos = pygame.mouse.get_pos()
                 self.hover_cell = self._get_cell_from_mouse(mouse_pos)
+                
+                # Check button hover
+                self.hover_button = None
+                for button in self.buttons:
+                    if button['rect'].collidepoint(mouse_pos):
+                        self.hover_button = button
+                        break
                 
                 # Handle drag for obstacles
                 if self.mouse_held and self.edit_mode in [self.MODE_OBSTACLE, self.MODE_ERASE]:
@@ -302,16 +448,30 @@ class PygameUI:
         # Draw buttons
         for button in self.buttons:
             is_active = False
+            is_hovered = (self.hover_button == button)
+            
             if button['mode'] == self.edit_mode:
                 is_active = True
             elif button['mode'] == self.MODE_RUN and not self.paused:
                 is_active = True
             elif button['mode'] == 'help' and self.show_help:
                 is_active = True
+            elif button['mode'] == 'settings' and self.show_settings:
+                is_active = True
             
-            color = self.COLOR_BUTTON_ACTIVE if is_active else self.COLOR_BUTTON_INACTIVE
+            # Determine button color
+            if is_active:
+                color = self.COLOR_BUTTON_ACTIVE
+            elif is_hovered:
+                color = (100, 100, 120)  # Hover color
+            else:
+                color = self.COLOR_BUTTON_INACTIVE
+            
             pygame.draw.rect(self.screen, color, button['rect'], border_radius=5)
-            pygame.draw.rect(self.screen, (150, 150, 150), button['rect'], 1, border_radius=5)
+            
+            # Border - brighter when hovered
+            border_color = (200, 200, 200) if is_hovered else (150, 150, 150)
+            pygame.draw.rect(self.screen, border_color, button['rect'], 1, border_radius=5)
             
             # Button label
             label_text = button['label']
@@ -322,10 +482,10 @@ class PygameUI:
             label_rect = label.get_rect(center=button['rect'].center)
             self.screen.blit(label, label_rect)
         
-        # Mode indicator
+        # Mode indicator with step hint
         mode_text = f"Mode: {self.edit_mode.upper()}"
         if self.paused:
-            mode_text += " (PAUSED)"
+            mode_text += " [.]Step"
         mode_surface = self.small_font.render(mode_text, True, (200, 200, 200))
         self.screen.blit(mode_surface, (self.screen.get_width() - 180, 15))
     
@@ -433,6 +593,19 @@ class PygameUI:
                 hover_surface.fill((255, 50, 50, 100))
             
             self.screen.blit(hover_surface, hover_rect.topleft)
+            
+            # Draw coordinate tooltip
+            coord_text = f"({hx}, {hy})"
+            coord_surface = self.tiny_font.render(coord_text, True, (50, 50, 50))
+            coord_bg = pygame.Surface((coord_surface.get_width() + 6, coord_surface.get_height() + 4), pygame.SRCALPHA)
+            coord_bg.fill((255, 255, 200, 220))
+            
+            # Position tooltip near cursor but within screen bounds
+            tooltip_x = min(hover_rect.right + 5, self.screen.get_width() - coord_bg.get_width() - 5)
+            tooltip_y = hover_rect.top
+            
+            self.screen.blit(coord_bg, (tooltip_x, tooltip_y))
+            self.screen.blit(coord_surface, (tooltip_x + 3, tooltip_y + 2))
     
     def draw_paths(self):
         """Draw robot paths."""
@@ -507,11 +680,14 @@ class PygameUI:
             "KEYBOARD SHORTCUTS",
             "─" * 30,
             "SPACE    - Start/Pause simulation",
+            ".        - Step once (when paused)",
             "1        - Obstacle mode (draw walls)",
             "2        - Package mode (place goals)",
             "3        - Robot mode (add/remove robots)",
             "4        - Erase mode",
+            "R        - Generate random layout",
             "C        - Clear entire grid",
+            "S        - Settings (grid size, FPS)",
             "P        - Toggle path display",
             "+/-      - Increase/decrease speed",
             "H        - Toggle this help",
@@ -540,6 +716,150 @@ class PygameUI:
             self.screen.blit(text, text_rect)
             y += 28
     
+    def draw_settings_overlay(self):
+        """Draw settings overlay with grid size and FPS options."""
+        if not self.show_settings:
+            return
+        
+        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        self.screen.blit(overlay, (0, 0))
+        
+        center_x = self.screen.get_width() // 2
+        
+        # Title
+        title = self.font.render("SETTINGS", True, (100, 200, 255))
+        title_rect = title.get_rect(center=(center_x, 80))
+        self.screen.blit(title, title_rect)
+        
+        # Grid Size Section
+        y = 140
+        grid_label = self.font.render("Grid Size:", True, (220, 220, 220))
+        self.screen.blit(grid_label, (center_x - 150, y))
+        
+        # Grid size buttons
+        btn_width = 45
+        btn_height = 35
+        btn_y = y + 35
+        start_x = center_x - (len(self.grid_sizes) * (btn_width + 5)) // 2
+        
+        self.grid_size_buttons = []
+        for i, size in enumerate(self.grid_sizes):
+            btn_x = start_x + i * (btn_width + 5)
+            btn_rect = pygame.Rect(btn_x, btn_y, btn_width, btn_height)
+            
+            is_selected = (i == self.current_grid_size_idx)
+            color = (100, 180, 100) if is_selected else (80, 80, 90)
+            
+            pygame.draw.rect(self.screen, color, btn_rect, border_radius=5)
+            pygame.draw.rect(self.screen, (150, 150, 150), btn_rect, 1, border_radius=5)
+            
+            label = self.small_font.render(str(size), True, (255, 255, 255))
+            label_rect = label.get_rect(center=btn_rect.center)
+            self.screen.blit(label, label_rect)
+            
+            self.grid_size_buttons.append({'rect': btn_rect, 'size': size, 'index': i})
+        
+        # FPS Section
+        y = 240
+        fps_label = self.font.render("Simulation Speed (FPS):", True, (220, 220, 220))
+        self.screen.blit(fps_label, (center_x - 150, y))
+        
+        # FPS buttons
+        btn_y = y + 35
+        start_x = center_x - (len(self.fps_options) * (btn_width + 5)) // 2
+        
+        self.fps_buttons = []
+        for i, fps_val in enumerate(self.fps_options):
+            btn_x = start_x + i * (btn_width + 5)
+            btn_rect = pygame.Rect(btn_x, btn_y, btn_width, btn_height)
+            
+            is_selected = (i == self.current_fps_idx)
+            color = (100, 180, 100) if is_selected else (80, 80, 90)
+            
+            pygame.draw.rect(self.screen, color, btn_rect, border_radius=5)
+            pygame.draw.rect(self.screen, (150, 150, 150), btn_rect, 1, border_radius=5)
+            
+            label = self.small_font.render(str(fps_val), True, (255, 255, 255))
+            label_rect = label.get_rect(center=btn_rect.center)
+            self.screen.blit(label, label_rect)
+            
+            self.fps_buttons.append({'rect': btn_rect, 'fps': fps_val, 'index': i})
+        
+        # Current values display
+        y = 340
+        current_text = f"Current: {self.warehouse.width}x{self.warehouse.height} grid, {self.fps} FPS"
+        current_surface = self.font.render(current_text, True, (150, 200, 150))
+        current_rect = current_surface.get_rect(center=(center_x, y))
+        self.screen.blit(current_surface, current_rect)
+        
+        # Instructions
+        y = 400
+        note1 = self.small_font.render("Click a grid size to change (clears current layout)", True, (180, 180, 180))
+        note1_rect = note1.get_rect(center=(center_x, y))
+        self.screen.blit(note1, note1_rect)
+        
+        y = 425
+        note2 = self.small_font.render("Click FPS to change simulation speed", True, (180, 180, 180))
+        note2_rect = note2.get_rect(center=(center_x, y))
+        self.screen.blit(note2, note2_rect)
+        
+        y = 470
+        close_text = self.small_font.render("Press S or click Settings to close", True, (120, 120, 120))
+        close_rect = close_text.get_rect(center=(center_x, y))
+        self.screen.blit(close_text, close_rect)
+    
+    def _handle_settings_click(self, mouse_pos: Tuple[int, int]) -> bool:
+        """Handle clicks on settings overlay. Returns True if a button was clicked."""
+        if not self.show_settings:
+            return False
+        
+        # Check grid size buttons
+        if hasattr(self, 'grid_size_buttons'):
+            for btn in self.grid_size_buttons:
+                if btn['rect'].collidepoint(mouse_pos):
+                    new_size = btn['size']
+                    if new_size != self.warehouse.width:
+                        self.current_grid_size_idx = btn['index']
+                        self._resize_grid(new_size)
+                    return True
+        
+        # Check FPS buttons
+        if hasattr(self, 'fps_buttons'):
+            for btn in self.fps_buttons:
+                if btn['rect'].collidepoint(mouse_pos):
+                    self.current_fps_idx = btn['index']
+                    self.fps = btn['fps']
+                    return True
+        
+        return False
+    
+    def _resize_grid(self, new_size: int):
+        """Resize the grid to a new size."""
+        import numpy as np
+        
+        # Clear current state
+        self._clear_grid()
+        
+        # Resize warehouse grid
+        self.warehouse.width = new_size
+        self.warehouse.height = new_size
+        self.warehouse.grid = np.zeros((new_size, new_size), dtype=int)
+        
+        # Recalculate cell size
+        self.cell_size = self.grid_size // max(self.warehouse.width, self.warehouse.height)
+        self.grid_width = self.cell_size * self.warehouse.width
+        self.grid_height = self.cell_size * self.warehouse.height
+        
+        # Resize window
+        new_window_width = max(self.grid_width, 600)
+        new_window_height = self.grid_height + self.panel_height + self.toolbar_height
+        self.screen = pygame.display.set_mode((new_window_width, new_window_height))
+        
+        # Notify callback if set
+        if self.on_grid_resize:
+            self.on_grid_resize(new_size)
+    
     def render(self, timestep: int, stats: Dict):
         """Render the complete UI."""
         self.screen.fill(self.COLOR_BACKGROUND)
@@ -551,6 +871,7 @@ class PygameUI:
         self.draw_packages()
         self.draw_robots()
         self.draw_help_overlay()
+        self.draw_settings_overlay()
         
         pygame.display.flip()
         self.clock.tick(self.fps if not self.paused else 30)
@@ -558,6 +879,13 @@ class PygameUI:
     def is_paused(self) -> bool:
         """Check if simulation is paused."""
         return self.paused
+    
+    def should_step(self) -> bool:
+        """Check if we should execute one step (step mode). Consumes the step flag."""
+        if self.step_once:
+            self.step_once = False
+            return True
+        return False
     
     def show_completion_message(self, stats: Dict):
         """Show completion overlay."""

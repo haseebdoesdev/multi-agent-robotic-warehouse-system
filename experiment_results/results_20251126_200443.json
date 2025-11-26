@@ -1,0 +1,994 @@
+[
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 20,
+      "num_robots": 3,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 22,
+    "packages_collected": 9,
+    "total_distance": 65,
+    "conflicts_resolved": 1,
+    "efficiency": 7.222222222222222,
+    "wall_time_seconds": 0.011953115463256836,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          6,
+          8
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 22,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          13,
+          16
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 22,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          7,
+          9
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 21,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 20,
+      "num_robots": 3,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 49,
+    "packages_collected": 18,
+    "total_distance": 144,
+    "conflicts_resolved": 2,
+    "efficiency": 8.0,
+    "wall_time_seconds": 0.02649235725402832,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          18,
+          9
+        ],
+        "packages_collected": 8,
+        "distance_traveled": 49,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          18,
+          7
+        ],
+        "packages_collected": 6,
+        "distance_traveled": 48,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          18,
+          8
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 47,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 20,
+      "num_robots": 5,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 17,
+    "packages_collected": 10,
+    "total_distance": 83,
+    "conflicts_resolved": 1,
+    "efficiency": 8.3,
+    "wall_time_seconds": 0.02230358123779297,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          8,
+          9
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 17,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          9,
+          7
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 17,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          8,
+          10
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 17,
+        "status": "completed"
+      },
+      {
+        "id": 3,
+        "position": [
+          10,
+          12
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 16,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          8,
+          8
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 16,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 20,
+      "num_robots": 5,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 22,
+    "packages_collected": 13,
+    "total_distance": 110,
+    "conflicts_resolved": 0,
+    "efficiency": 8.461538461538462,
+    "wall_time_seconds": 0.030339956283569336,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          8,
+          8
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 22,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          12,
+          5
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 22,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          5,
+          8
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 22,
+        "status": "moving"
+      },
+      {
+        "id": 3,
+        "position": [
+          19,
+          7
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 22,
+        "status": "completed"
+      },
+      {
+        "id": 4,
+        "position": [
+          4,
+          9
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 22,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 30,
+      "num_robots": 3,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 50,
+    "packages_collected": 12,
+    "total_distance": 146,
+    "conflicts_resolved": 4,
+    "efficiency": 12.166666666666666,
+    "wall_time_seconds": 0.023659944534301758,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          9,
+          17
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 50,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          7,
+          17
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 46,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          19,
+          20
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 50,
+        "status": "completed"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 30,
+      "num_robots": 3,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 59,
+    "packages_collected": 16,
+    "total_distance": 174,
+    "conflicts_resolved": 3,
+    "efficiency": 10.875,
+    "wall_time_seconds": 0.0336000919342041,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          0,
+          17
+        ],
+        "packages_collected": 7,
+        "distance_traveled": 59,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          0,
+          19
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 58,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          5,
+          16
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 57,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 30,
+      "num_robots": 5,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 26,
+    "packages_collected": 11,
+    "total_distance": 128,
+    "conflicts_resolved": 1,
+    "efficiency": 11.636363636363637,
+    "wall_time_seconds": 0.029201030731201172,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          9,
+          17
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          9,
+          14
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 25,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          9,
+          26
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 26,
+        "status": "completed"
+      },
+      {
+        "id": 3,
+        "position": [
+          9,
+          27
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 26,
+        "status": "completed"
+      },
+      {
+        "id": 4,
+        "position": [
+          1,
+          22
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 25,
+        "status": "idle"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 20,
+      "grid_height": 30,
+      "num_robots": 5,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 26,
+    "packages_collected": 13,
+    "total_distance": 103,
+    "conflicts_resolved": 0,
+    "efficiency": 7.923076923076923,
+    "wall_time_seconds": 0.025467395782470703,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          0,
+          0
+        ],
+        "packages_collected": 0,
+        "distance_traveled": 0,
+        "status": "idle"
+      },
+      {
+        "id": 1,
+        "position": [
+          12,
+          9
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 26,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          14,
+          17
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 3,
+        "position": [
+          14,
+          12
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          14,
+          11
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 25,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 20,
+      "num_robots": 3,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 34,
+    "packages_collected": 9,
+    "total_distance": 102,
+    "conflicts_resolved": 0,
+    "efficiency": 11.333333333333334,
+    "wall_time_seconds": 0.028270483016967773,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          14,
+          1
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 34,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          22,
+          19
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 34,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          10,
+          4
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 34,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 20,
+      "num_robots": 3,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 34,
+    "packages_collected": 13,
+    "total_distance": 101,
+    "conflicts_resolved": 0,
+    "efficiency": 7.769230769230769,
+    "wall_time_seconds": 0.042424917221069336,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          13,
+          19
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 34,
+        "status": "completed"
+      },
+      {
+        "id": 1,
+        "position": [
+          14,
+          11
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 34,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          19,
+          17
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 33,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 20,
+      "num_robots": 5,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 26,
+    "packages_collected": 11,
+    "total_distance": 128,
+    "conflicts_resolved": 2,
+    "efficiency": 11.636363636363637,
+    "wall_time_seconds": 0.028050661087036133,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          13,
+          14
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 26,
+        "status": "completed"
+      },
+      {
+        "id": 1,
+        "position": [
+          20,
+          15
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          11,
+          14
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 24,
+        "status": "moving"
+      },
+      {
+        "id": 3,
+        "position": [
+          18,
+          14
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          8,
+          14
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 26,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 20,
+      "num_robots": 5,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 26,
+    "packages_collected": 16,
+    "total_distance": 128,
+    "conflicts_resolved": 1,
+    "efficiency": 8.0,
+    "wall_time_seconds": 0.03979182243347168,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          10,
+          8
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          12,
+          10
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          11,
+          10
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 26,
+        "status": "completed"
+      },
+      {
+        "id": 3,
+        "position": [
+          17,
+          9
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 26,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          8,
+          8
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 24,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 30,
+      "num_robots": 3,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 36,
+    "packages_collected": 9,
+    "total_distance": 108,
+    "conflicts_resolved": 0,
+    "efficiency": 12.0,
+    "wall_time_seconds": 0.029108285903930664,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          13,
+          17
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 36,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          15,
+          20
+        ],
+        "packages_collected": 5,
+        "distance_traveled": 36,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          10,
+          12
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 36,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 30,
+      "num_robots": 3,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 42,
+    "packages_collected": 13,
+    "total_distance": 124,
+    "conflicts_resolved": 2,
+    "efficiency": 9.538461538461538,
+    "wall_time_seconds": 0.04216790199279785,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          15,
+          20
+        ],
+        "packages_collected": 6,
+        "distance_traveled": 42,
+        "status": "moving"
+      },
+      {
+        "id": 1,
+        "position": [
+          24,
+          29
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 42,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          13,
+          20
+        ],
+        "packages_collected": 4,
+        "distance_traveled": 40,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 30,
+      "num_robots": 5,
+      "num_packages": 8,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 28,
+    "packages_collected": 9,
+    "total_distance": 139,
+    "conflicts_resolved": 1,
+    "efficiency": 15.444444444444445,
+    "wall_time_seconds": 0.035941362380981445,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          14,
+          14
+        ],
+        "packages_collected": 1,
+        "distance_traveled": 28,
+        "status": "completed"
+      },
+      {
+        "id": 1,
+        "position": [
+          26,
+          20
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 28,
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "position": [
+          15,
+          18
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 28,
+        "status": "moving"
+      },
+      {
+        "id": 3,
+        "position": [
+          15,
+          20
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 27,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          15,
+          17
+        ],
+        "packages_collected": 0,
+        "distance_traveled": 28,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  },
+  {
+    "config": {
+      "grid_width": 30,
+      "grid_height": 30,
+      "num_robots": 5,
+      "num_packages": 12,
+      "obstacle_density": 0.15,
+      "max_timesteps": 500,
+      "random_seed": 42,
+      "name": "exp_30x30_r5_p10"
+    },
+    "success": false,
+    "completion_time": 35,
+    "packages_collected": 16,
+    "total_distance": 173,
+    "conflicts_resolved": 2,
+    "efficiency": 10.8125,
+    "wall_time_seconds": 0.05889701843261719,
+    "per_robot_stats": [
+      {
+        "id": 0,
+        "position": [
+          15,
+          16
+        ],
+        "packages_collected": 6,
+        "distance_traveled": 35,
+        "status": "completed"
+      },
+      {
+        "id": 1,
+        "position": [
+          13,
+          11
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 35,
+        "status": "moving"
+      },
+      {
+        "id": 2,
+        "position": [
+          23,
+          17
+        ],
+        "packages_collected": 2,
+        "distance_traveled": 35,
+        "status": "moving"
+      },
+      {
+        "id": 3,
+        "position": [
+          20,
+          15
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 35,
+        "status": "moving"
+      },
+      {
+        "id": 4,
+        "position": [
+          13,
+          14
+        ],
+        "packages_collected": 3,
+        "distance_traveled": 33,
+        "status": "moving"
+      }
+    ],
+    "error_message": ""
+  }
+]

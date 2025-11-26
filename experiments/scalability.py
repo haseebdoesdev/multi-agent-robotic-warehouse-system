@@ -189,6 +189,7 @@ def _generate_start_positions(width: int, height: int,
                                warehouse: Warehouse) -> List[Tuple[int, int]]:
     """Generate starting positions distributed around the warehouse edges."""
     positions = []
+    used_positions = set()
     corners = [(0, 0), (width-1, 0), (0, height-1), (width-1, height-1)]
     
     for i in range(num_robots):
@@ -206,18 +207,28 @@ def _generate_start_positions(width: int, height: int,
             else:  # Left
                 pos = (0, i % height)
         
-        # Ensure position is valid
-        if not warehouse.is_valid_move(pos[0], pos[1], ignore_packages=True):
+        # Ensure position is valid and not already used
+        if (not warehouse.is_valid_move(pos[0], pos[1], ignore_packages=True) 
+            or pos in used_positions):
             # Find nearest valid position
-            for dx in range(-2, 3):
-                for dy in range(-2, 3):
-                    new_pos = (max(0, min(width-1, pos[0]+dx)), 
-                               max(0, min(height-1, pos[1]+dy)))
-                    if warehouse.is_valid_move(new_pos[0], new_pos[1], ignore_packages=True):
-                        pos = new_pos
+            found = False
+            for radius in range(1, max(width, height)):
+                for dx in range(-radius, radius + 1):
+                    for dy in range(-radius, radius + 1):
+                        new_pos = (max(0, min(width-1, pos[0]+dx)), 
+                                   max(0, min(height-1, pos[1]+dy)))
+                        if (warehouse.is_valid_move(new_pos[0], new_pos[1], ignore_packages=True)
+                            and new_pos not in used_positions):
+                            pos = new_pos
+                            found = True
+                            break
+                    if found:
                         break
+                if found:
+                    break
         
         positions.append(pos)
+        used_positions.add(pos)
     
     return positions
 

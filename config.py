@@ -94,7 +94,7 @@ GENERATE_PLOTS = True  # Generate matplotlib plots
 # Module 6: RL Integration
 # ==============================================================================
 
-RL_ENABLED = False  # Enable RL-guided pathfinding
+RL_ENABLED = True  # Enable RL-guided pathfinding
 
 # Q-Learning parameters
 RL_TRAINING_EPISODES = 1000

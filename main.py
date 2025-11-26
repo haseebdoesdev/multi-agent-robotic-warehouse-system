@@ -14,6 +14,53 @@ from metrics.reporting import generate_report
 import config
 
 
+def get_valid_start_positions(warehouse, preferred_positions, num_robots):
+    """Get valid starting positions for robots, avoiding obstacles."""
+    valid_positions = []
+    used_positions = set()
+    
+    for i in range(num_robots):
+        preferred = preferred_positions[i % len(preferred_positions)]
+        
+        # Check if preferred position is valid
+        if (warehouse.is_valid_move(preferred[0], preferred[1], ignore_packages=True) 
+            and preferred not in used_positions):
+            valid_positions.append(preferred)
+            used_positions.add(preferred)
+        else:
+            # Find nearest valid position
+            found = False
+            for radius in range(1, max(warehouse.width, warehouse.height)):
+                for dx in range(-radius, radius + 1):
+                    for dy in range(-radius, radius + 1):
+                        nx, ny = preferred[0] + dx, preferred[1] + dy
+                        if (warehouse.is_valid_move(nx, ny, ignore_packages=True)
+                            and (nx, ny) not in used_positions):
+                            valid_positions.append((nx, ny))
+                            used_positions.add((nx, ny))
+                            found = True
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            
+            if not found:
+                # Fallback: find any valid position
+                for y in range(warehouse.height):
+                    for x in range(warehouse.width):
+                        if (warehouse.is_valid_move(x, y, ignore_packages=True)
+                            and (x, y) not in used_positions):
+                            valid_positions.append((x, y))
+                            used_positions.add((x, y))
+                            found = True
+                            break
+                    if found:
+                        break
+    
+    return valid_positions
+
+
 def run_simulation():
     print("=" * 60)
     print("  Multi-Agent Robotic Warehouse - Text Simulation")
@@ -36,15 +83,18 @@ def run_simulation():
     warehouse.place_obstacles(predefined=config.OBSTACLE_LOCATIONS)
     warehouse.place_packages(NUM_PACKAGES, locations=config.PACKAGE_LOCATIONS)
     
-    # Create robots
+    # Create robots with validated positions
     robots = []
     if config.ROBOT_START_POSITIONS:
-        robot_start_positions = config.ROBOT_START_POSITIONS
+        preferred_positions = config.ROBOT_START_POSITIONS
     else:
-        robot_start_positions = [(0, 0), (GRID_WIDTH-1, GRID_HEIGHT-1), (0, GRID_HEIGHT-1)]
+        preferred_positions = [(0, 0), (GRID_WIDTH-1, GRID_HEIGHT-1), (0, GRID_HEIGHT-1)]
+    
+    # Get valid positions that don't overlap with obstacles
+    valid_positions = get_valid_start_positions(warehouse, preferred_positions, NUM_ROBOTS)
     
     for i in range(NUM_ROBOTS):
-        start_pos = robot_start_positions[i % len(robot_start_positions)]
+        start_pos = valid_positions[i]
         robot = Robot(robot_id=i, start_position=start_pos)
         robots.append(robot)
     

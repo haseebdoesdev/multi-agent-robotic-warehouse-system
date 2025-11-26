@@ -31,26 +31,68 @@ ACTION_NAMES = {
 
 @dataclass
 class State:
-    """State representation for Q-learning."""
+    """
+    State representation for Q-learning with obstacle awareness.
+    
+    Includes:
+    - Robot position
+    - Target position
+    - Local obstacle information (what's blocked in each direction)
+    """
     robot_x: int
     robot_y: int
     target_x: int
     target_y: int
-    # Optional: local obstacle window (simplified for now)
+    # Obstacle flags: True if obstacle/wall blocks that direction
+    obstacle_up: bool = False
+    obstacle_down: bool = False
+    obstacle_left: bool = False
+    obstacle_right: bool = False
     
     def to_tuple(self) -> Tuple:
         """Convert to hashable tuple for Q-table indexing."""
-        return (self.robot_x, self.robot_y, self.target_x, self.target_y)
+        return (self.robot_x, self.robot_y, self.target_x, self.target_y,
+                self.obstacle_up, self.obstacle_down, self.obstacle_left, self.obstacle_right)
     
     @classmethod
     def from_tuple(cls, t: Tuple) -> 'State':
-        return cls(robot_x=t[0], robot_y=t[1], target_x=t[2], target_y=t[3])
+        return cls(
+            robot_x=t[0], robot_y=t[1], target_x=t[2], target_y=t[3],
+            obstacle_up=t[4] if len(t) > 4 else False,
+            obstacle_down=t[5] if len(t) > 5 else False,
+            obstacle_left=t[6] if len(t) > 6 else False,
+            obstacle_right=t[7] if len(t) > 7 else False
+        )
     
-    def get_relative_state(self) -> Tuple[int, int]:
-        """Get relative direction to target (simpler state space)."""
-        dx = np.sign(self.target_x - self.robot_x)
-        dy = np.sign(self.target_y - self.robot_y)
-        return (int(dx), int(dy))
+    def get_relative_state(self) -> Tuple:
+        """
+        Get relative state with direction to target AND obstacle info.
+        
+        Returns: (dir_x, dir_y, obs_up, obs_down, obs_left, obs_right)
+        - dir_x: -1 (target left), 0 (same column), 1 (target right)
+        - dir_y: -1 (target above), 0 (same row), 1 (target below)
+        - obs_*: 1 if blocked, 0 if clear
+        
+        This gives 9 directions × 16 obstacle combinations = 144 states
+        """
+        dx = int(np.sign(self.target_x - self.robot_x))
+        dy = int(np.sign(self.target_y - self.robot_y))
+        return (
+            dx, dy,
+            int(self.obstacle_up),
+            int(self.obstacle_down),
+            int(self.obstacle_left),
+            int(self.obstacle_right)
+        )
+    
+    def get_obstacle_tuple(self) -> Tuple[int, int, int, int]:
+        """Get just the obstacle information as a tuple."""
+        return (
+            int(self.obstacle_up),
+            int(self.obstacle_down),
+            int(self.obstacle_left),
+            int(self.obstacle_right)
+        )
 
 
 class WarehouseEnv:
@@ -77,13 +119,15 @@ class WarehouseEnv:
         self.steps = 0
         self.max_steps = self.width * self.height * 2
         
-        # Rewards
+        # Rewards - tuned to discourage waiting and encourage quick paths
         self.reward_reach_target = 100.0
-        self.reward_step = -0.1
+        self.reward_step = -1.0          # Higher step penalty to encourage shorter paths
         self.reward_collision = -10.0
         self.reward_invalid = -5.0
-        self.reward_closer = 0.5
-        self.reward_farther = -0.3
+        self.reward_closer = 2.0         # Strong reward for moving closer
+        self.reward_farther = -2.0       # Strong penalty for moving away
+        self.reward_wait = -5.0          # Heavy penalty for waiting
+        self.reward_timeout = -50.0      # Penalty for not reaching target
     
     def reset(self, robot_start: Tuple[int, int] = None,
               target: Tuple[int, int] = None) -> State:
@@ -129,13 +173,32 @@ class WarehouseEnv:
         return (0, 0)
     
     def _get_state(self) -> State:
-        """Get current state."""
+        """Get current state including obstacle awareness."""
+        rx, ry = self.robot_position
+        
+        # Check what's blocked in each direction
+        # UP means y-1, DOWN means y+1, LEFT means x-1, RIGHT means x+1
+        obstacle_up = not self._is_valid_position(rx, ry - 1)
+        obstacle_down = not self._is_valid_position(rx, ry + 1)
+        obstacle_left = not self._is_valid_position(rx - 1, ry)
+        obstacle_right = not self._is_valid_position(rx + 1, ry)
+        
         return State(
-            robot_x=self.robot_position[0],
-            robot_y=self.robot_position[1],
+            robot_x=rx,
+            robot_y=ry,
             target_x=self.target_position[0],
-            target_y=self.target_position[1]
+            target_y=self.target_position[1],
+            obstacle_up=obstacle_up,
+            obstacle_down=obstacle_down,
+            obstacle_left=obstacle_left,
+            obstacle_right=obstacle_right
         )
+    
+    def _is_valid_position(self, x: int, y: int) -> bool:
+        """Check if a position is valid (in bounds and not obstacle)."""
+        if x < 0 or x >= self.width or y < 0 or y >= self.height:
+            return False
+        return self.warehouse.is_valid_move(x, y, ignore_packages=True)
     
     def step(self, action: int) -> Tuple[State, float, bool, Dict]:
         """
@@ -158,6 +221,20 @@ class WarehouseEnv:
             return self._get_state(), self.reward_invalid, False, {'message': 'Invalid action'}
         
         dx, dy = ACTIONS[action]
+        
+        # Check for WAIT action (action 4) - heavily penalize
+        if action == 4 or (dx == 0 and dy == 0):
+            reward = self.reward_wait
+            info['message'] = 'Waiting (penalized)'
+            
+            # Check max steps with timeout penalty
+            if self.steps >= self.max_steps:
+                self.done = True
+                reward += self.reward_timeout
+                info['message'] = 'Timeout - failed to reach target'
+            
+            return self._get_state(), reward, self.done, info
+        
         old_position = self.robot_position
         new_x = self.robot_position[0] + dx
         new_y = self.robot_position[1] + dy
@@ -178,7 +255,9 @@ class WarehouseEnv:
             
             # Check if reached target
             if self.robot_position == self.target_position:
-                reward = self.reward_reach_target
+                # Bonus for reaching faster (fewer steps = higher bonus)
+                speed_bonus = max(0, (self.max_steps - self.steps) / self.max_steps * 20)
+                reward = self.reward_reach_target + speed_bonus
                 self.done = True
                 info['message'] = 'Reached target!'
             else:
@@ -194,10 +273,11 @@ class WarehouseEnv:
                     reward = self.reward_step
                     info['message'] = 'Same distance'
         
-        # Check max steps
-        if self.steps >= self.max_steps:
+        # Check max steps - apply timeout penalty
+        if self.steps >= self.max_steps and not self.done:
             self.done = True
-            info['message'] = 'Max steps reached'
+            reward += self.reward_timeout
+            info['message'] = 'Timeout - failed to reach target'
         
         return self._get_state(), reward, self.done, info
     
@@ -290,7 +370,53 @@ class QLearningAgent:
         else:
             # Exploit: best action
             q_values = self._get_q_values(state)
+            
+            # If all Q-values are zero (unseen state), use heuristic
+            if np.all(q_values == 0) and not training:
+                return self._heuristic_action(state)
+            
             return int(np.argmax(q_values))
+    
+    def _heuristic_action(self, state: State) -> int:
+        """
+        Fallback heuristic for unseen states.
+        Moves toward target while avoiding obstacles.
+        """
+        rel = state.get_relative_state()
+        dir_x, dir_y = rel[0], rel[1]
+        obs_up, obs_down, obs_left, obs_right = rel[2], rel[3], rel[4], rel[5]
+        
+        # Priority: move in the direction of the target if not blocked
+        preferred_actions = []
+        
+        # Horizontal preference
+        if dir_x > 0 and not obs_right:
+            preferred_actions.append(3)  # RIGHT
+        elif dir_x < 0 and not obs_left:
+            preferred_actions.append(2)  # LEFT
+        
+        # Vertical preference
+        if dir_y > 0 and not obs_down:
+            preferred_actions.append(1)  # DOWN
+        elif dir_y < 0 and not obs_up:
+            preferred_actions.append(0)  # UP
+        
+        # If we have preferred actions, pick one
+        if preferred_actions:
+            return preferred_actions[0]
+        
+        # Otherwise, try any unblocked direction
+        if not obs_up:
+            return 0
+        if not obs_down:
+            return 1
+        if not obs_left:
+            return 2
+        if not obs_right:
+            return 3
+        
+        # All blocked - wait (shouldn't happen)
+        return 4
     
     def update(self, state: State, action: int, reward: float, 
                next_state: State, done: bool):

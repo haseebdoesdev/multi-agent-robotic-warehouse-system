@@ -95,6 +95,7 @@ GENERATE_PLOTS = True  # Generate matplotlib plots
 # ==============================================================================
 
 RL_ENABLED = True  # Enable RL-guided pathfinding
+RL_FALLBACK_TO_ASTAR = True  # Fall back to A* if RL model not found
 
 # Q-Learning parameters
 RL_TRAINING_EPISODES = 1000
@@ -106,6 +107,7 @@ RL_ALPHA = 0.1  # Learning rate
 RL_GAMMA = 0.99  # Discount factor
 
 RL_MODEL_PATH = "rl_agent.pkl"  # Path to save/load trained model
+RL_GUI_MODEL_PATH = "rl_agent_gui.pkl"  # Model saved from RL GUI
 RL_USE_RELATIVE_STATE = True  # Use relative state representation
 
 # ==============================================================================
@@ -224,6 +226,7 @@ def get_rl_config() -> dict:
     """Get RL configuration as a dictionary."""
     return {
         'enabled': RL_ENABLED,
+        'fallback_to_astar': RL_FALLBACK_TO_ASTAR,
         'training_episodes': RL_TRAINING_EPISODES,
         'epsilon': RL_EPSILON,
         'epsilon_start': RL_EPSILON_START,
@@ -232,5 +235,6 @@ def get_rl_config() -> dict:
         'alpha': RL_ALPHA,
         'gamma': RL_GAMMA,
         'model_path': RL_MODEL_PATH,
+        'gui_model_path': RL_GUI_MODEL_PATH,
         'use_relative_state': RL_USE_RELATIVE_STATE
     }

@@ -48,8 +48,8 @@ def main():
     parser.add_argument(
         "--episodes", "-e",
         type=int,
-        default=20000,
-        help="Number of training episodes (default: 20000)"
+        default=100000,
+        help="Number of training episodes (default: 100000)"
     )
     
     parser.add_argument(

@@ -2,11 +2,18 @@
 Q-Learning RL Integration Module (Module 6)
 -------------------------------------------
 Implements Q-learning for robot navigation in the warehouse environment.
+
+Enhanced with:
+- Oscillation detection and penalties
+- Position history tracking
+- Improved state representation with recent action memory
+- Stuck detection with forced exploration
 """
 
 import numpy as np
-from typing import Tuple, List, Dict, Optional
+from typing import Tuple, List, Dict, Optional, Deque
 from dataclasses import dataclass, field
+from collections import deque
 import pickle
 import os
 
@@ -28,16 +35,27 @@ ACTION_NAMES = {
     4: 'WAIT'
 }
 
+# Opposite actions for oscillation detection
+OPPOSITE_ACTIONS = {
+    0: 1,  # UP <-> DOWN
+    1: 0,
+    2: 3,  # LEFT <-> RIGHT
+    3: 2,
+    4: 4,  # WAIT has no opposite
+}
+
 
 @dataclass
 class State:
     """
-    State representation for Q-learning with obstacle awareness.
+    State representation for Q-learning with obstacle awareness and action history.
     
     Includes:
     - Robot position
     - Target position
     - Local obstacle information (what's blocked in each direction)
+    - Last action taken (for oscillation-aware learning)
+    - Stuck counter (how many steps without progress)
     """
     robot_x: int
     robot_y: int
@@ -48,11 +66,16 @@ class State:
     obstacle_down: bool = False
     obstacle_left: bool = False
     obstacle_right: bool = False
+    # Last action for oscillation awareness (-1 = no previous action)
+    last_action: int = -1
+    # Stuck level: 0=not stuck, 1=slightly stuck, 2=very stuck
+    stuck_level: int = 0
     
     def to_tuple(self) -> Tuple:
         """Convert to hashable tuple for Q-table indexing."""
         return (self.robot_x, self.robot_y, self.target_x, self.target_y,
-                self.obstacle_up, self.obstacle_down, self.obstacle_left, self.obstacle_right)
+                self.obstacle_up, self.obstacle_down, self.obstacle_left, self.obstacle_right,
+                self.last_action, self.stuck_level)
     
     @classmethod
     def from_tuple(cls, t: Tuple) -> 'State':
@@ -61,19 +84,24 @@ class State:
             obstacle_up=t[4] if len(t) > 4 else False,
             obstacle_down=t[5] if len(t) > 5 else False,
             obstacle_left=t[6] if len(t) > 6 else False,
-            obstacle_right=t[7] if len(t) > 7 else False
+            obstacle_right=t[7] if len(t) > 7 else False,
+            last_action=t[8] if len(t) > 8 else -1,
+            stuck_level=t[9] if len(t) > 9 else 0
         )
     
     def get_relative_state(self) -> Tuple:
         """
-        Get relative state with direction to target AND obstacle info.
+        Get relative state with direction to target, obstacle info, and action history.
         
-        Returns: (dir_x, dir_y, obs_up, obs_down, obs_left, obs_right)
+        Returns: (dir_x, dir_y, obs_up, obs_down, obs_left, obs_right, last_action, stuck_level)
         - dir_x: -1 (target left), 0 (same column), 1 (target right)
         - dir_y: -1 (target above), 0 (same row), 1 (target below)
         - obs_*: 1 if blocked, 0 if clear
+        - last_action: 0-4 for the last action, -1 for none
+        - stuck_level: 0-2 indicating how stuck the agent is
         
-        This gives 9 directions × 16 obstacle combinations = 144 states
+        This gives 9 directions × 16 obstacle combinations × 6 last_actions × 3 stuck_levels = 2592 states
+        (Still very manageable for Q-learning)
         """
         dx = int(np.sign(self.target_x - self.robot_x))
         dy = int(np.sign(self.target_y - self.robot_y))
@@ -82,7 +110,9 @@ class State:
             int(self.obstacle_up),
             int(self.obstacle_down),
             int(self.obstacle_left),
-            int(self.obstacle_right)
+            int(self.obstacle_right),
+            self.last_action,
+            self.stuck_level
         )
     
     def get_obstacle_tuple(self) -> Tuple[int, int, int, int]:
@@ -99,6 +129,11 @@ class WarehouseEnv:
     """
     Gymnasium-like environment for warehouse navigation.
     Single-agent environment for training Q-learning.
+    
+    Enhanced with:
+    - Oscillation detection (going back and forth)
+    - Position history tracking (penalizes revisits)
+    - Stuck detection (tracks steps without progress)
     """
     
     def __init__(self, warehouse, target_position: Tuple[int, int] = None):
@@ -119,15 +154,30 @@ class WarehouseEnv:
         self.steps = 0
         self.max_steps = self.width * self.height * 2
         
-        # Rewards - tuned to discourage waiting and encourage quick paths
+        # Rewards - tuned to discourage waiting and oscillation
         self.reward_reach_target = 100.0
-        self.reward_step = -1.0          # Higher step penalty to encourage shorter paths
+        self.reward_step = -1.0          # Step penalty to encourage shorter paths
         self.reward_collision = -10.0
         self.reward_invalid = -5.0
-        self.reward_closer = 2.0         # Strong reward for moving closer
-        self.reward_farther = -2.0       # Strong penalty for moving away
+        self.reward_closer = 3.0         # Strong reward for moving closer
+        self.reward_farther = -2.0       # Penalty for moving away
         self.reward_wait = -5.0          # Heavy penalty for waiting
         self.reward_timeout = -50.0      # Penalty for not reaching target
+        
+        # NEW: Anti-oscillation rewards
+        self.reward_oscillation = -8.0   # Heavy penalty for oscillating (A->B->A)
+        self.reward_revisit = -4.0       # Penalty for revisiting recent positions
+        self.reward_progress = 1.0       # Bonus for visiting new positions
+        
+        # Position and action history for oscillation detection
+        self.position_history: Deque[Tuple[int, int]] = deque(maxlen=10)
+        self.action_history: Deque[int] = deque(maxlen=4)
+        self.last_action: int = -1
+        
+        # Stuck detection
+        self.best_distance: int = float('inf')  # Best distance achieved this episode
+        self.steps_since_progress: int = 0      # Steps since we got closer to target
+        self.stuck_threshold: int = 6           # Steps before considered "stuck"
     
     def reset(self, robot_start: Tuple[int, int] = None,
               target: Tuple[int, int] = None) -> State:
@@ -144,6 +194,12 @@ class WarehouseEnv:
         self.done = False
         self.steps = 0
         
+        # Reset tracking variables
+        self.position_history.clear()
+        self.action_history.clear()
+        self.last_action = -1
+        self.steps_since_progress = 0
+        
         # Set robot start position
         if robot_start is not None:
             self.robot_position = robot_start
@@ -159,6 +215,12 @@ class WarehouseEnv:
         else:
             self.target_position = self._random_valid_position()
         
+        # Initialize best distance
+        self.best_distance = self._manhattan_distance(self.robot_position, self.target_position)
+        
+        # Add starting position to history
+        self.position_history.append(self.robot_position)
+        
         return self._get_state()
     
     def _random_valid_position(self) -> Tuple[int, int]:
@@ -173,7 +235,7 @@ class WarehouseEnv:
         return (0, 0)
     
     def _get_state(self) -> State:
-        """Get current state including obstacle awareness."""
+        """Get current state including obstacle awareness and history."""
         rx, ry = self.robot_position
         
         # Check what's blocked in each direction
@@ -183,6 +245,14 @@ class WarehouseEnv:
         obstacle_left = not self._is_valid_position(rx - 1, ry)
         obstacle_right = not self._is_valid_position(rx + 1, ry)
         
+        # Calculate stuck level (0, 1, or 2)
+        if self.steps_since_progress >= self.stuck_threshold * 2:
+            stuck_level = 2  # Very stuck
+        elif self.steps_since_progress >= self.stuck_threshold:
+            stuck_level = 1  # Slightly stuck
+        else:
+            stuck_level = 0  # Not stuck
+        
         return State(
             robot_x=rx,
             robot_y=ry,
@@ -191,8 +261,43 @@ class WarehouseEnv:
             obstacle_up=obstacle_up,
             obstacle_down=obstacle_down,
             obstacle_left=obstacle_left,
-            obstacle_right=obstacle_right
+            obstacle_right=obstacle_right,
+            last_action=self.last_action,
+            stuck_level=stuck_level
         )
+    
+    def _detect_oscillation(self, action: int) -> bool:
+        """
+        Detect if the agent is oscillating (e.g., UP->DOWN->UP or LEFT->RIGHT->LEFT).
+        
+        Returns True if the current action creates an oscillation pattern.
+        """
+        if len(self.action_history) < 2:
+            return False
+        
+        # Check for immediate oscillation: A -> opposite(A) -> A
+        if len(self.action_history) >= 2:
+            prev_action = self.action_history[-1]
+            prev_prev_action = self.action_history[-2]
+            
+            # If current action is the same as 2 steps ago, and last action was opposite
+            if action == prev_prev_action and prev_action == OPPOSITE_ACTIONS.get(action, -1):
+                return True
+        
+        # Check for position oscillation: if we're returning to a position we just left
+        if len(self.position_history) >= 2:
+            # If moving to the position we were at 2 steps ago
+            dx, dy = ACTIONS.get(action, (0, 0))
+            next_pos = (self.robot_position[0] + dx, self.robot_position[1] + dy)
+            
+            if len(self.position_history) >= 2 and next_pos == self.position_history[-2]:
+                return True
+        
+        return False
+    
+    def _count_recent_visits(self, position: Tuple[int, int]) -> int:
+        """Count how many times a position appears in recent history."""
+        return sum(1 for pos in self.position_history if pos == position)
     
     def _is_valid_position(self, x: int, y: int) -> bool:
         """Check if a position is valid (in bounds and not obstacle)."""
@@ -204,6 +309,8 @@ class WarehouseEnv:
         """
         Take an action in the environment.
         
+        Enhanced with oscillation detection and position history penalties.
+        
         Args:
             action: Action index (0-4)
         
@@ -214,10 +321,11 @@ class WarehouseEnv:
             return self._get_state(), 0.0, True, {'message': 'Episode already done'}
         
         self.steps += 1
-        info = {'action': ACTION_NAMES.get(action, 'UNKNOWN')}
+        info = {'action': ACTION_NAMES.get(action, 'UNKNOWN'), 'oscillation': False}
         
         # Get action delta
         if action not in ACTIONS:
+            self.steps_since_progress += 1
             return self._get_state(), self.reward_invalid, False, {'message': 'Invalid action'}
         
         dx, dy = ACTIONS[action]
@@ -226,6 +334,9 @@ class WarehouseEnv:
         if action == 4 or (dx == 0 and dy == 0):
             reward = self.reward_wait
             info['message'] = 'Waiting (penalized)'
+            self.steps_since_progress += 1
+            self.action_history.append(action)
+            self.last_action = action
             
             # Check max steps with timeout penalty
             if self.steps >= self.max_steps:
@@ -234,6 +345,9 @@ class WarehouseEnv:
                 info['message'] = 'Timeout - failed to reach target'
             
             return self._get_state(), reward, self.done, info
+        
+        # Detect oscillation BEFORE making the move
+        is_oscillating = self._detect_oscillation(action)
         
         old_position = self.robot_position
         new_x = self.robot_position[0] + dx
@@ -246,9 +360,11 @@ class WarehouseEnv:
         if not self.warehouse.is_within_bounds(new_x, new_y):
             reward = self.reward_invalid
             info['message'] = 'Out of bounds'
+            self.steps_since_progress += 1
         elif not self.warehouse.is_valid_move(new_x, new_y, ignore_packages=True):
             reward = self.reward_collision
             info['message'] = 'Collision with obstacle'
+            self.steps_since_progress += 1
         else:
             # Valid move
             self.robot_position = (new_x, new_y)
@@ -260,18 +376,48 @@ class WarehouseEnv:
                 reward = self.reward_reach_target + speed_bonus
                 self.done = True
                 info['message'] = 'Reached target!'
+                self.steps_since_progress = 0
             else:
                 # Reward based on distance change
                 new_distance = self._manhattan_distance(self.robot_position, self.target_position)
+                
                 if new_distance < old_distance:
                     reward = self.reward_step + self.reward_closer
                     info['message'] = 'Moving closer'
+                    self.steps_since_progress = 0  # Reset stuck counter on progress
+                    
+                    # Update best distance
+                    if new_distance < self.best_distance:
+                        self.best_distance = new_distance
+                        reward += self.reward_progress  # Bonus for new best distance
+                        
                 elif new_distance > old_distance:
                     reward = self.reward_step + self.reward_farther
                     info['message'] = 'Moving farther'
+                    self.steps_since_progress += 1
                 else:
                     reward = self.reward_step
                     info['message'] = 'Same distance'
+                    self.steps_since_progress += 1
+                
+                # Apply oscillation penalty
+                if is_oscillating:
+                    reward += self.reward_oscillation
+                    info['message'] += ' (OSCILLATING!)'
+                    info['oscillation'] = True
+                
+                # Apply revisit penalty based on how often we've visited this position
+                visit_count = self._count_recent_visits(self.robot_position)
+                if visit_count > 0:
+                    # Progressive penalty for repeated visits
+                    revisit_penalty = self.reward_revisit * visit_count
+                    reward += revisit_penalty
+                    info['message'] += f' (revisit x{visit_count})'
+        
+        # Update history
+        self.position_history.append(self.robot_position)
+        self.action_history.append(action)
+        self.last_action = action
         
         # Check max steps - apply timeout penalty
         if self.steps >= self.max_steps and not self.done:
@@ -355,7 +501,7 @@ class QLearningAgent:
     
     def select_action(self, state: State, training: bool = True) -> int:
         """
-        Select an action using epsilon-greedy policy.
+        Select an action using epsilon-greedy policy with stuck-breaking.
         
         Args:
             state: Current state
@@ -364,9 +510,19 @@ class QLearningAgent:
         Returns:
             Selected action index
         """
+        # STUCK BREAKING: If very stuck, force exploration
+        if state.stuck_level == 2:
+            # Very stuck - higher chance of random exploration
+            if np.random.random() < 0.5:  # 50% chance to explore when very stuck
+                return self._smart_random_action(state)
+        elif state.stuck_level == 1:
+            # Slightly stuck - moderate exploration boost
+            if np.random.random() < 0.3:  # 30% chance
+                return self._smart_random_action(state)
+        
         if training and np.random.random() < self.epsilon:
-            # Explore: random action
-            return np.random.randint(0, self.n_actions)
+            # Explore: smart random action (avoids obstacles and opposite of last move)
+            return self._smart_random_action(state)
         else:
             # Exploit: best action
             q_values = self._get_q_values(state)
@@ -375,47 +531,127 @@ class QLearningAgent:
             if np.all(q_values == 0) and not training:
                 return self._heuristic_action(state)
             
+            # Tie-breaking: if multiple actions have the same best Q-value, pick randomly
+            max_q = np.max(q_values)
+            best_actions = np.where(q_values == max_q)[0]
+            if len(best_actions) > 1:
+                return int(np.random.choice(best_actions))
+            
             return int(np.argmax(q_values))
+    
+    def _smart_random_action(self, state: State) -> int:
+        """
+        Select a random action that:
+        1. Avoids obstacles
+        2. Avoids the opposite of the last action (to prevent oscillation)
+        3. Never waits unless trapped
+        """
+        rel = state.get_relative_state()
+        obs_up, obs_down, obs_left, obs_right = rel[2], rel[3], rel[4], rel[5]
+        last_action = state.last_action
+        
+        # Build list of valid actions (not blocked, not WAIT)
+        valid_actions = []
+        obstacle_map = {0: obs_up, 1: obs_down, 2: obs_left, 3: obs_right}
+        
+        for action in range(4):  # Exclude WAIT (4)
+            if not obstacle_map[action]:
+                # Prefer not to take the opposite of last action
+                if last_action >= 0 and action == OPPOSITE_ACTIONS.get(last_action, -1):
+                    continue  # Skip opposite action (will add with lower priority)
+                valid_actions.append(action)
+        
+        # If no non-opposite actions available, include opposite
+        if not valid_actions:
+            for action in range(4):
+                if not obstacle_map[action]:
+                    valid_actions.append(action)
+        
+        # If still no valid actions, we're trapped - wait
+        if not valid_actions:
+            return 4  # WAIT
+        
+        return int(np.random.choice(valid_actions))
     
     def _heuristic_action(self, state: State) -> int:
         """
         Fallback heuristic for unseen states.
         Moves toward target while avoiding obstacles.
+        
+        Enhanced with:
+        - Randomized selection among equally good options
+        - Avoids repeating the opposite of last action
+        - Wall-following when direct path is blocked
         """
         rel = state.get_relative_state()
         dir_x, dir_y = rel[0], rel[1]
         obs_up, obs_down, obs_left, obs_right = rel[2], rel[3], rel[4], rel[5]
+        last_action = state.last_action
         
         # Priority: move in the direction of the target if not blocked
-        preferred_actions = []
+        primary_actions = []  # Actions that move toward target
+        secondary_actions = []  # Actions that don't move away
+        fallback_actions = []  # Any valid action
         
         # Horizontal preference
         if dir_x > 0 and not obs_right:
-            preferred_actions.append(3)  # RIGHT
+            primary_actions.append(3)  # RIGHT
         elif dir_x < 0 and not obs_left:
-            preferred_actions.append(2)  # LEFT
+            primary_actions.append(2)  # LEFT
         
         # Vertical preference
         if dir_y > 0 and not obs_down:
-            preferred_actions.append(1)  # DOWN
+            primary_actions.append(1)  # DOWN
         elif dir_y < 0 and not obs_up:
-            preferred_actions.append(0)  # UP
+            primary_actions.append(0)  # UP
         
-        # If we have preferred actions, pick one
-        if preferred_actions:
-            return preferred_actions[0]
+        # If primary direction is blocked, try perpendicular (wall-following)
+        if not primary_actions:
+            # If target is horizontally aligned but blocked, try vertical
+            if dir_x != 0:  # Target is left or right
+                if not obs_up:
+                    secondary_actions.append(0)
+                if not obs_down:
+                    secondary_actions.append(1)
+            # If target is vertically aligned but blocked, try horizontal
+            if dir_y != 0:  # Target is above or below
+                if not obs_left:
+                    secondary_actions.append(2)
+                if not obs_right:
+                    secondary_actions.append(3)
         
-        # Otherwise, try any unblocked direction
+        # Build fallback list of any unblocked direction
         if not obs_up:
-            return 0
+            fallback_actions.append(0)
         if not obs_down:
-            return 1
+            fallback_actions.append(1)
         if not obs_left:
-            return 2
+            fallback_actions.append(2)
         if not obs_right:
-            return 3
+            fallback_actions.append(3)
         
-        # All blocked - wait (shouldn't happen)
+        # Filter out the opposite of last action if possible (prevents oscillation)
+        def filter_opposite(actions: List[int]) -> List[int]:
+            if last_action < 0 or last_action >= 4:
+                return actions
+            opposite = OPPOSITE_ACTIONS.get(last_action, -1)
+            filtered = [a for a in actions if a != opposite]
+            return filtered if filtered else actions
+        
+        # Try actions in priority order
+        if primary_actions:
+            filtered = filter_opposite(primary_actions)
+            return int(np.random.choice(filtered))
+        
+        if secondary_actions:
+            filtered = filter_opposite(secondary_actions)
+            return int(np.random.choice(filtered))
+        
+        if fallback_actions:
+            filtered = filter_opposite(fallback_actions)
+            return int(np.random.choice(filtered))
+        
+        # All blocked - wait (shouldn't happen normally)
         return 4
     
     def update(self, state: State, action: int, reward: float, 
@@ -442,7 +678,21 @@ class QLearningAgent:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
     
     def get_policy(self, state: State) -> int:
-        """Get the best action according to learned policy."""
+        """
+        Get the best action according to learned policy.
+        
+        Includes stuck-breaking even during testing to prevent infinite loops.
+        """
+        # Even during testing, break out of stuck situations
+        if state.stuck_level == 2:
+            # Very stuck - force random valid move
+            if np.random.random() < 0.7:  # 70% chance when very stuck
+                return self._smart_random_action(state)
+        elif state.stuck_level == 1:
+            # Slightly stuck - moderate chance of random
+            if np.random.random() < 0.4:  # 40% chance
+                return self._smart_random_action(state)
+        
         return self.select_action(state, training=False)
     
     def save(self, filepath: str):

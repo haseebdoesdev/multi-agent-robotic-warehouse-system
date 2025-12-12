@@ -1,0 +1,35 @@
+============================================================
+  SIMULATION METRICS SUMMARY
+============================================================
+
+Total Timesteps: 2
+Packages Collected: 1
+Total Distance: 4
+Conflicts Resolved: 0
+
+Efficiency Metrics:
+  Moves per Package: 4.00
+  Timesteps per Package: 2.00
+  Collection Rate: 0.5000 packages/step
+
+Timing Metrics:
+  First Collection: Step 1
+  Avg Time Between Collections: 0.0 steps
+
+Congestion Metrics:
+  Conflicts per 100 Steps: 0.00
+  Congestion Index: 0.0000
+
+Utilization Metrics:
+  Active Utilization: 100.0%
+  Moving: 100.0%
+  Idle: 0.0%
+  Waiting: 0.0%
+
+Per-Robot Performance:
+  Robot 0: 1 packages, 2 distance, 100.0% contribution
+  Robot 1: 0 packages, 2 distance, 0.0% contribution
+
+============================================================
+
+Report generated: 2025-12-12 06:29:47

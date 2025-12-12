@@ -10,7 +10,16 @@ from .qlearning import (
     RLGuidedPathfinder
 )
 
+from .multi_agent_qlearning import (
+    MultiAgentWarehouseEnv,
+    MultiAgentQLearning,
+    MultiAgentState,
+    RobotInfo,
+    train_multi_agent
+)
+
 __all__ = [
+    # Single-agent
     'QLearningAgent',
     'WarehouseEnv', 
     'State',
@@ -19,8 +28,16 @@ __all__ = [
     'train_agent',
     'evaluate_agent',
     'quick_train',
-    'RLGuidedPathfinder'
+    'RLGuidedPathfinder',
+    # Multi-agent
+    'MultiAgentWarehouseEnv',
+    'MultiAgentQLearning',
+    'MultiAgentState',
+    'RobotInfo',
+    'train_multi_agent'
 ]
+
+
 
 
 

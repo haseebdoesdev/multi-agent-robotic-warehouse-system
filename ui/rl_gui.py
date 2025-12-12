@@ -39,6 +39,7 @@ class RLTrainingUI:
     # Colors
     COLOR_BG = (30, 30, 40)
     COLOR_PANEL = (45, 45, 55)
+    COLOR_TOOLBAR = (38, 38, 48)
     COLOR_GRID_BG = (60, 60, 70)
     COLOR_GRID_LINE = (80, 80, 90)
     COLOR_OBSTACLE = (100, 100, 110)
@@ -47,11 +48,16 @@ class RLTrainingUI:
     COLOR_PATH = (100, 150, 200, 100)
     COLOR_TEXT = (220, 220, 220)
     COLOR_TEXT_DIM = (150, 150, 150)
+    COLOR_TEXT_LABEL = (120, 140, 160)
     COLOR_SUCCESS = (100, 255, 100)
     COLOR_FAIL = (255, 100, 100)
     COLOR_BUTTON = (70, 130, 180)
     COLOR_BUTTON_HOVER = (90, 150, 200)
     COLOR_BUTTON_ACTIVE = (100, 200, 150)
+    COLOR_BUTTON_SECONDARY = (80, 90, 110)
+    COLOR_BUTTON_CONTROL = (60, 80, 100)
+    COLOR_SEPARATOR = (65, 65, 75)
+    COLOR_GROUP_BG = (50, 50, 62)
     COLOR_GRAPH_BG = (40, 40, 50)
     COLOR_GRAPH_LINE = (100, 200, 255)
     COLOR_GRAPH_SUCCESS = (100, 255, 150)
@@ -91,7 +97,7 @@ class RLTrainingUI:
         self.font_tiny = pygame.font.Font(None, 16)
         
         # Layout
-        self.toolbar_height = 50
+        self.toolbar_height = 60
         self.stats_width = 250
         self.graph_height = 150
         self.grid_area_width = window_width - self.stats_width
@@ -108,14 +114,14 @@ class RLTrainingUI:
         self.grid_offset_x = (self.grid_area_width - self.grid_width) // 2
         self.grid_offset_y = self.toolbar_height + (self.grid_area_height - self.grid_height) // 2
         
-        # RL components
+        # RL components - Enhanced with anti-oscillation
         self.env = WarehouseEnv(self.warehouse)
         self.agent = QLearningAgent(
-            alpha=0.2,            # Slightly higher learning rate
-            gamma=0.95,           # Slightly lower discount for faster learning
+            alpha=0.15,           # Balanced learning rate
+            gamma=0.95,           # Good discount for warehouse navigation
             epsilon=1.0,
             epsilon_min=0.01,
-            epsilon_decay=0.99,   # Faster decay
+            epsilon_decay=0.995,  # Slower decay for better exploration coverage
             use_relative_state=True
         )
         
@@ -124,7 +130,7 @@ class RLTrainingUI:
         self.is_testing = False
         self.training_thread = None
         self.current_episode = 0
-        self.total_episodes = 20000  # Train for 20k episodes for thorough coverage
+        self.total_episodes = 10000  # Default episodes (configurable via GUI)
         self.episodes_completed = 0
         self.current_step = 0
         self.current_reward = 0.0
@@ -132,6 +138,10 @@ class RLTrainingUI:
         self.episode_successes: List[bool] = []
         self.recent_rewards = deque(maxlen=100)
         self.recent_successes = deque(maxlen=100)
+        
+        # Episode count presets for quick selection
+        self.episode_presets = [1000, 5000, 10000, 50000, 100000]
+        self.current_preset_idx = 2  # Default to 10000
         
         # Visualization state
         self.robot_pos: Optional[Tuple[int, int]] = None
@@ -156,31 +166,77 @@ class RLTrainingUI:
         self.lock = threading.Lock()
     
     def _create_buttons(self) -> Dict[str, pygame.Rect]:
-        """Create toolbar buttons."""
+        """Create toolbar buttons with grouped layout."""
         buttons = {}
-        x = 10
-        y = 10
-        btn_height = 30
-        spacing = 10
+        btn_height = 28
+        btn_y = 22  # Buttons lower to leave room for labels
+        group_spacing = 20  # Space between groups
+        btn_spacing = 4    # Space between buttons in same group
         
-        button_defs = [
-            ("train", "Train", 70),
-            ("pause", "Pause", 60),
-            ("test", "Test", 50),
-            ("reset", "Reset", 55),
-            ("save", "Save", 50),
-            ("load", "Load", 50),
-            ("speed_down", "−", 30),
-            ("speed_label", "5x", 45),
-            ("speed_up", "+", 30),
-            ("new_grid", "New Grid", 75),
-        ]
+        x = 15
         
-        for btn_id, label, width in button_defs:
-            buttons[btn_id] = pygame.Rect(x, y, width, btn_height)
-            x += width + spacing
+        # Group 1: Control buttons (Train, Pause, Test)
+        self.group_control_x = x
+        for btn_id, width in [("train", 58), ("pause", 52), ("test", 45)]:
+            buttons[btn_id] = pygame.Rect(x, btn_y, width, btn_height)
+            x += width + btn_spacing
+        self.group_control_end = x - btn_spacing
+        
+        x += group_spacing
+        
+        # Group 2: Data buttons (Reset, Save, Load)
+        self.group_data_x = x
+        for btn_id, width in [("reset", 50), ("save", 45), ("load", 45)]:
+            buttons[btn_id] = pygame.Rect(x, btn_y, width, btn_height)
+            x += width + btn_spacing
+        self.group_data_end = x - btn_spacing
+        
+        x += group_spacing
+        
+        # Group 3: Speed control
+        self.group_speed_x = x
+        for btn_id, width in [("speed_down", 24), ("speed_label", 42), ("speed_up", 24)]:
+            buttons[btn_id] = pygame.Rect(x, btn_y, width, btn_height)
+            x += width + 2
+        self.group_speed_end = x - 2
+        
+        x += group_spacing
+        
+        # Group 4: Episodes control
+        self.group_episodes_x = x
+        for btn_id, width in [("ep_down", 24), ("ep_label", 50), ("ep_up", 24)]:
+            buttons[btn_id] = pygame.Rect(x, btn_y, width, btn_height)
+            x += width + 2
+        self.group_episodes_end = x - 2
+        
+        x += group_spacing
+        
+        # Group 5: Grid button
+        self.group_grid_x = x
+        buttons["new_grid"] = pygame.Rect(x, btn_y, 65, btn_height)
+        self.group_grid_end = x + 65
         
         return buttons
+    
+    def _format_episodes(self, count: int) -> str:
+        """Format episode count for display."""
+        if count >= 1000000:
+            return f"{count // 1000000}M"
+        elif count >= 1000:
+            return f"{count // 1000}K"
+        else:
+            return str(count)
+    
+    def _change_episodes(self, delta: int):
+        """Change episode count preset."""
+        if self.is_training:
+            self.last_message = "Stop training first to change episodes"
+            return
+        
+        self.current_preset_idx = max(0, min(len(self.episode_presets) - 1, 
+                                              self.current_preset_idx + delta))
+        self.total_episodes = self.episode_presets[self.current_preset_idx]
+        self.last_message = f"Target episodes: {self._format_episodes(self.total_episodes)}"
     
     def _get_button_at(self, pos: Tuple[int, int]) -> Optional[str]:
         """Get button ID at mouse position."""
@@ -215,6 +271,10 @@ class RLTrainingUI:
                     self._change_speed(1)
                 elif event.key == pygame.K_MINUS:
                     self._change_speed(-1)
+                elif event.key == pygame.K_LEFT:
+                    self._change_episodes(-1)
+                elif event.key == pygame.K_RIGHT:
+                    self._change_episodes(1)
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 btn = self._get_button_at(event.pos)
@@ -248,6 +308,10 @@ class RLTrainingUI:
             self._change_speed(1)
         elif btn_id == "speed_down":
             self._change_speed(-1)
+        elif btn_id == "ep_up":
+            self._change_episodes(1)
+        elif btn_id == "ep_down":
+            self._change_episodes(-1)
         elif btn_id == "new_grid":
             self.new_grid()
     
@@ -386,9 +450,13 @@ class RLTrainingUI:
         self.stop_training()
         self.is_testing = False
         
+        # Create fresh agent with anti-oscillation enhancements
         self.agent = QLearningAgent(
-            alpha=0.1, gamma=0.99, epsilon=1.0,
-            epsilon_min=0.01, epsilon_decay=0.995,
+            alpha=0.15,           # Balanced learning rate  
+            gamma=0.95,           # Good discount for warehouse navigation
+            epsilon=1.0,
+            epsilon_min=0.01, 
+            epsilon_decay=0.995,  # Slower decay for better exploration coverage
             use_relative_state=True
         )
         
@@ -401,6 +469,7 @@ class RLTrainingUI:
         self.path_history.clear()
         self.robot_pos = None
         self.target_pos = None
+        self.last_message = "Agent reset with anti-oscillation improvements!"
     
     def new_grid(self):
         """Generate a new random grid - preserves Q-table for transfer learning."""
@@ -427,22 +496,58 @@ class RLTrainingUI:
     def load_agent(self):
         """Load a trained agent."""
         import os
+        loaded = False
         if os.path.exists("rl_agent_gui.pkl"):
-            self.agent.load("rl_agent_gui.pkl")
-            self.last_message = "Agent loaded!"
+            try:
+                self.agent.load("rl_agent_gui.pkl")
+                self.last_message = "Agent loaded! (May need retraining for new state format)"
+                loaded = True
+            except Exception as e:
+                self.last_message = f"Load failed: {e}"
         elif os.path.exists("rl_agent.pkl"):
-            self.agent.load("rl_agent.pkl")
-            self.last_message = "Agent loaded!"
-        else:
+            try:
+                self.agent.load("rl_agent.pkl")
+                self.last_message = "Agent loaded! (May need retraining for new state format)"
+                loaded = True
+            except Exception as e:
+                self.last_message = f"Load failed: {e}"
+        
+        if not loaded and "failed" not in self.last_message.lower():
             self.last_message = "No saved agent found"
     
     def draw_toolbar(self):
-        """Draw the toolbar."""
+        """Draw the toolbar with grouped controls."""
+        # Main toolbar background
         toolbar_rect = pygame.Rect(0, 0, self.window_width, self.toolbar_height)
-        pygame.draw.rect(self.screen, self.COLOR_PANEL, toolbar_rect)
+        pygame.draw.rect(self.screen, self.COLOR_TOOLBAR, toolbar_rect)
         
+        # Bottom border line
+        pygame.draw.line(self.screen, self.COLOR_SEPARATOR,
+                        (0, self.toolbar_height - 1),
+                        (self.window_width, self.toolbar_height - 1), 1)
+        
+        # Draw group labels
+        label_y = 6
+        labels = [
+            (self.group_control_x, self.group_control_end, "CONTROL"),
+            (self.group_data_x, self.group_data_end, "DATA"),
+            (self.group_speed_x, self.group_speed_end, "SPEED"),
+            (self.group_episodes_x, self.group_episodes_end, "EPISODES"),
+            (self.group_grid_x, self.group_grid_end, "GRID"),
+        ]
+        
+        for start_x, end_x, label_text in labels:
+            # Draw subtle background for group
+            group_rect = pygame.Rect(start_x - 4, 18, end_x - start_x + 8, 36)
+            pygame.draw.rect(self.screen, self.COLOR_GROUP_BG, group_rect, border_radius=4)
+            
+            # Draw label
+            label = self.font_tiny.render(label_text, True, self.COLOR_TEXT_LABEL)
+            label_x = start_x + (end_x - start_x - label.get_width()) // 2
+            self.screen.blit(label, (label_x, label_y))
+        
+        # Draw buttons
         for btn_id, rect in self.buttons.items():
-            # Determine button color
             is_hover = (self.hover_button == btn_id)
             is_active = False
             
@@ -451,26 +556,45 @@ class RLTrainingUI:
             elif btn_id == "test" and self.is_testing:
                 is_active = True
             
+            # Determine button color based on type
             if is_active:
                 color = self.COLOR_BUTTON_ACTIVE
             elif is_hover:
                 color = self.COLOR_BUTTON_HOVER
+            elif btn_id in ("speed_down", "speed_up", "ep_down", "ep_up"):
+                color = self.COLOR_BUTTON_CONTROL
+            elif btn_id in ("speed_label", "ep_label"):
+                color = self.COLOR_BUTTON_SECONDARY
             else:
                 color = self.COLOR_BUTTON
             
-            pygame.draw.rect(self.screen, color, rect, border_radius=5)
+            pygame.draw.rect(self.screen, color, rect, border_radius=4)
+            
+            # Button border for better definition
+            if btn_id in ("speed_label", "ep_label"):
+                pygame.draw.rect(self.screen, self.COLOR_SEPARATOR, rect, 1, border_radius=4)
             
             # Button label
             if btn_id == "train":
-                label = "Stop" if self.is_training else "Train"
+                label = "■ Stop" if self.is_training else "▶ Train"
             elif btn_id == "speed_label":
                 label = self.speed_labels[self.current_speed_idx]
-            else:
-                label = btn_id.replace("_", " ").title()
-                if btn_id == "speed_up":
+            elif btn_id == "ep_label":
+                label = self._format_episodes(self.total_episodes)
+            elif btn_id == "ep_up":
+                label = "▶"
+            elif btn_id == "ep_down":
+                label = "◀"
+            elif btn_id == "speed_up":
                     label = "+"
-                elif btn_id == "speed_down":
+            elif btn_id == "speed_down":
                     label = "−"
+            elif btn_id == "new_grid":
+                label = "New Grid"
+            elif btn_id == "test":
+                label = "◉ Test" if self.is_testing else "Test"
+            else:
+                label = btn_id.title()
             
             text = self.font_small.render(label, True, self.COLOR_TEXT)
             text_rect = text.get_rect(center=rect.center)
@@ -717,11 +841,12 @@ class RLTrainingUI:
         print("  RL Training Visualizer")
         print("=" * 60)
         print("\nControls:")
-        print("  SPACE - Start/Stop training")
-        print("  T     - Test trained agent")
-        print("  R     - Reset agent")
-        print("  +/-   - Adjust speed")
-        print("  ESC   - Exit")
+        print("  SPACE      - Start/Stop training")
+        print("  T          - Test trained agent")
+        print("  R          - Reset agent")
+        print("  +/-        - Adjust visualization speed")
+        print("  LEFT/RIGHT - Adjust episode count (1K/5K/10K/50K/100K)")
+        print("  ESC        - Exit")
         print()
         
         while self.running:

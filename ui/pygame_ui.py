@@ -16,10 +16,15 @@ class PygameUI:
     COLOR_PATH = (200, 220, 255)
     COLOR_TEXT = (0, 0, 0)
     COLOR_PANEL = (240, 240, 240)
-    COLOR_TOOLBAR = (50, 50, 60)
-    COLOR_BUTTON_ACTIVE = (100, 180, 100)
-    COLOR_BUTTON_INACTIVE = (80, 80, 90)
+    COLOR_TOOLBAR = (42, 44, 52)
+    COLOR_TOOLBAR_GROUP = (52, 54, 65)
+    COLOR_BUTTON_ACTIVE = (90, 180, 110)
+    COLOR_BUTTON_INACTIVE = (70, 72, 82)
+    COLOR_BUTTON_HOVER = (90, 95, 110)
+    COLOR_BUTTON_RUN = (70, 140, 90)
+    COLOR_BUTTON_STOP = (180, 80, 80)
     COLOR_HOVER = (255, 255, 150, 100)
+    COLOR_TEXT_LABEL = (140, 145, 160)
     
     ROBOT_COLORS = [
         (255, 50, 50),    # Red
@@ -48,7 +53,7 @@ class PygameUI:
         self.fps = fps
         
         # Layout
-        self.toolbar_height = 50
+        self.toolbar_height = 58
         self.panel_height = 100
         self.grid_size = window_size - self.panel_height - self.toolbar_height
         self.cell_size = self.grid_size // max(warehouse.width, warehouse.height)
@@ -59,7 +64,7 @@ class PygameUI:
         # Initialize pygame
         pygame.init()
         self.screen = pygame.display.set_mode((
-            max(self.grid_width, 600), 
+            max(self.grid_width, 720),  # Wider minimum for toolbar
             self.grid_height + self.panel_height + self.toolbar_height
         ))
         pygame.display.set_caption("Multi-Agent Warehouse - Interactive Mode")
@@ -95,38 +100,91 @@ class PygameUI:
         # Callback for grid resize (set by main_gui.py)
         self.on_grid_resize = None
         
-        # Toolbar buttons
+        # Toolbar buttons and groups
+        self.button_groups = []  # For drawing group backgrounds
         self.buttons = self._create_buttons()
     
     def _create_buttons(self) -> List[Dict]:
-        """Create toolbar buttons."""
+        """Create toolbar buttons with grouped layout."""
         buttons = []
-        button_width = 65
-        button_height = 35
-        spacing = 3
-        x = spacing
-        y = 8
+        btn_height = 26
+        btn_y = 22  # Lower to allow for group labels
+        group_spacing = 14
+        btn_spacing = 3
         
-        button_defs = [
-            ('RUN', self.MODE_RUN, pygame.K_SPACE),
-            ('Obstacle', self.MODE_OBSTACLE, pygame.K_1),
-            ('Package', self.MODE_PACKAGE, pygame.K_2),
-            ('Robot', self.MODE_ROBOT, pygame.K_3),
-            ('Erase', self.MODE_ERASE, pygame.K_4),
-            ('Random', 'random', pygame.K_r),
-            ('Clear', 'clear', pygame.K_c),
-            ('Settings', 'settings', pygame.K_s),
-            ('Help', 'help', pygame.K_h),
-        ]
+        x = 10
         
-        for label, mode, key in button_defs:
+        # Group 1: Simulation Control
+        group_start = x
+        for label, mode, key, width in [
+            ('Run', self.MODE_RUN, pygame.K_SPACE, 48),
+        ]:
             buttons.append({
-                'rect': pygame.Rect(x, y, button_width, button_height),
+                'rect': pygame.Rect(x, btn_y, width, btn_height),
                 'label': label,
                 'mode': mode,
-                'key': key
+                'key': key,
+                'group': 'control'
             })
-            x += button_width + spacing
+            x += width + btn_spacing
+        self.button_groups.append(('SIM', group_start, x - btn_spacing))
+        
+        x += group_spacing
+        
+        # Group 2: Edit Tools
+        group_start = x
+        for label, mode, key, width in [
+            ('Obs', self.MODE_OBSTACLE, pygame.K_1, 36),
+            ('Pkg', self.MODE_PACKAGE, pygame.K_2, 36),
+            ('Bot', self.MODE_ROBOT, pygame.K_3, 36),
+            ('Del', self.MODE_ERASE, pygame.K_4, 36),
+        ]:
+            buttons.append({
+                'rect': pygame.Rect(x, btn_y, width, btn_height),
+                'label': label,
+                'mode': mode,
+                'key': key,
+                'group': 'tools'
+            })
+            x += width + btn_spacing
+        self.button_groups.append(('TOOLS [1-4]', group_start, x - btn_spacing))
+        
+        x += group_spacing
+        
+        # Group 3: Grid Actions
+        group_start = x
+        for label, mode, key, width in [
+            ('Rand', 'random', pygame.K_r, 42),
+            ('Clr', 'clear', pygame.K_c, 36),
+        ]:
+            buttons.append({
+                'rect': pygame.Rect(x, btn_y, width, btn_height),
+                'label': label,
+                'mode': mode,
+                'key': key,
+                'group': 'actions'
+            })
+            x += width + btn_spacing
+        self.button_groups.append(('GRID', group_start, x - btn_spacing))
+        
+        x += group_spacing
+        
+        # Group 4: View/Settings
+        group_start = x
+        for label, mode, key, width in [
+            ('Cfg', 'settings', pygame.K_s, 36),
+            ('?', 'help', pygame.K_h, 28),
+            ('Path', 'paths', pygame.K_p, 40),
+        ]:
+            buttons.append({
+                'rect': pygame.Rect(x, btn_y, width, btn_height),
+                'label': label,
+                'mode': mode,
+                'key': key,
+                'group': 'view'
+            })
+            x += width + btn_spacing
+        self.button_groups.append(('VIEW', group_start, x - btn_spacing))
         
         return buttons
     
@@ -219,6 +277,8 @@ class PygameUI:
         elif mode == 'settings':
             self.show_settings = not self.show_settings
             self.show_help = False
+        elif mode == 'paths':
+            self.show_paths = not self.show_paths
         elif mode == self.MODE_RUN:
             self.paused = not self.paused
             if not self.paused:
@@ -440,54 +500,101 @@ class PygameUI:
         return True
     
     def draw_toolbar(self):
-        """Draw the toolbar with buttons."""
+        """Draw the toolbar with grouped buttons."""
+        screen_width = self.screen.get_width()
+        
         # Toolbar background
-        toolbar_rect = pygame.Rect(0, 0, self.screen.get_width(), self.toolbar_height)
+        toolbar_rect = pygame.Rect(0, 0, screen_width, self.toolbar_height)
         pygame.draw.rect(self.screen, self.COLOR_TOOLBAR, toolbar_rect)
+        pygame.draw.line(self.screen, (30, 32, 40), 
+                        (0, self.toolbar_height - 1), (screen_width, self.toolbar_height - 1), 2)
+        
+        # Draw group backgrounds and labels
+        for label, start_x, end_x in self.button_groups:
+            group_rect = pygame.Rect(start_x - 4, 16, end_x - start_x + 8, 36)
+            pygame.draw.rect(self.screen, self.COLOR_TOOLBAR_GROUP, group_rect, border_radius=4)
+            label_surface = self.tiny_font.render(label, True, self.COLOR_TEXT_LABEL)
+            label_x = start_x + (end_x - start_x - label_surface.get_width()) // 2
+            self.screen.blit(label_surface, (label_x, 4))
         
         # Draw buttons
+        self._draw_toolbar_buttons()
+        
+        # Right side: Mode indicator
+        self._draw_toolbar_status(screen_width)
+    
+    def _draw_toolbar_buttons(self):
+        """Draw individual toolbar buttons."""
         for button in self.buttons:
-            is_active = False
+            is_active = self._is_button_active(button)
             is_hovered = (self.hover_button == button)
+            group = button.get('group', '')
             
-            if button['mode'] == self.edit_mode:
-                is_active = True
-            elif button['mode'] == self.MODE_RUN and not self.paused:
-                is_active = True
-            elif button['mode'] == 'help' and self.show_help:
-                is_active = True
-            elif button['mode'] == 'settings' and self.show_settings:
-                is_active = True
-            
-            # Determine button color
-            if is_active:
+            # Button color
+            if button['mode'] == self.MODE_RUN:
+                color = self.COLOR_BUTTON_STOP if not self.paused else self.COLOR_BUTTON_RUN
+            elif is_active:
                 color = self.COLOR_BUTTON_ACTIVE
             elif is_hovered:
-                color = (100, 100, 120)  # Hover color
+                color = self.COLOR_BUTTON_HOVER
             else:
                 color = self.COLOR_BUTTON_INACTIVE
             
-            pygame.draw.rect(self.screen, color, button['rect'], border_radius=5)
+            pygame.draw.rect(self.screen, color, button['rect'], border_radius=4)
             
-            # Border - brighter when hovered
-            border_color = (200, 200, 200) if is_hovered else (150, 150, 150)
-            pygame.draw.rect(self.screen, border_color, button['rect'], 1, border_radius=5)
+            # Border
+            border_color = (150, 200, 160) if is_active else ((120, 125, 140) if is_hovered else (90, 95, 110))
+            pygame.draw.rect(self.screen, border_color, button['rect'], 1, border_radius=4)
             
-            # Button label
-            label_text = button['label']
+            # Label
             if button['mode'] == self.MODE_RUN:
-                label_text = "PAUSE" if not self.paused else "RUN"
-            
-            label = self.small_font.render(label_text, True, (255, 255, 255))
-            label_rect = label.get_rect(center=button['rect'].center)
-            self.screen.blit(label, label_rect)
+                label_text = "Stop" if not self.paused else "Run"
+            else:
+                label_text = button['label']
+            text_color = self._get_tool_text_color(button, is_active) if group == 'tools' else (255, 255, 255)
+            label = self.small_font.render(label_text, True, text_color)
+            self.screen.blit(label, label.get_rect(center=button['rect'].center))
+    
+    def _is_button_active(self, button):
+        """Check if a button is in active state."""
+        mode = button['mode']
+        if mode == self.edit_mode:
+            return True
+        if mode == self.MODE_RUN and not self.paused:
+            return True
+        if mode == 'help' and self.show_help:
+            return True
+        if mode == 'settings' and self.show_settings:
+            return True
+        if mode == 'paths' and self.show_paths:
+            return True
+        return False
+    
+    def _get_tool_text_color(self, button, is_active):
+        """Get color for tool button icons."""
+        mode = button['mode']
+        if mode == self.MODE_OBSTACLE:
+            return (200, 200, 210) if is_active else (140, 140, 150)
+        elif mode == self.MODE_PACKAGE:
+            return (150, 255, 170) if is_active else (100, 200, 120)
+        elif mode == self.MODE_ROBOT:
+            return (140, 190, 255) if is_active else (100, 150, 220)
+        elif mode == self.MODE_ERASE:
+            return (255, 150, 150) if is_active else (200, 100, 100)
+        return (255, 255, 255)
+    
+    def _draw_toolbar_status(self, screen_width):
+        """Draw mode indicator on right side of toolbar."""
+        mode_names = {self.MODE_OBSTACLE: 'Obstacle', self.MODE_PACKAGE: 'Package',
+                      self.MODE_ROBOT: 'Robot', self.MODE_ERASE: 'Erase', self.MODE_RUN: 'Run'}
+        mode_text = f"Mode: {mode_names.get(self.edit_mode, self.edit_mode.title())}"
+        mode_surface = self.small_font.render(mode_text, True, (200, 205, 220))
+        right_x = screen_width - mode_surface.get_width() - 10
+        self.screen.blit(mode_surface, (right_x, 24))
         
-        # Mode indicator with step hint
-        mode_text = f"Mode: {self.edit_mode.upper()}"
-        if self.paused:
-            mode_text += " [.]Step"
-        mode_surface = self.small_font.render(mode_text, True, (200, 200, 200))
-        self.screen.blit(mode_surface, (self.screen.get_width() - 180, 15))
+        if self.paused and self.edit_mode == self.MODE_RUN:
+            hint = self.tiny_font.render("[.] Step", True, (160, 165, 180))
+            self.screen.blit(hint, (right_x, 40))
     
     def draw_panel(self, timestep: int, stats: Dict):
         """Draw the info panel."""
@@ -524,7 +631,8 @@ class PygameUI:
         
         stats_col3 = [
             f"FPS: {self.fps}",
-            f"Paths: {'ON' if self.show_paths else 'OFF'}",
+            f"Deadlocks: {stats.get('deadlocks_resolved', 0)}",
+            f"Replans: {stats.get('total_replans', 0)}",
         ]
         
         for i, text in enumerate(stats_col1):
@@ -903,7 +1011,7 @@ class PygameUI:
             f"Total Timesteps: {stats['timesteps']}",
             f"Packages Collected: {stats['total_packages_collected']}",
             f"Total Distance: {stats['total_distance_traveled']}",
-            f"Conflicts Resolved: {stats['conflicts_resolved']}",
+            f"Conflicts: {stats['conflicts_resolved']} | Deadlocks: {stats.get('deadlocks_resolved', 0)} | Replans: {stats.get('total_replans', 0)}",
         ]
         
         if stats['total_packages_collected'] > 0:

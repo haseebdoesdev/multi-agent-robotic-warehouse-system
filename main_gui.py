@@ -135,6 +135,7 @@ def run_simulation():
     print(f"Robots: {NUM_ROBOTS}")
     print(f"Packages: {NUM_PACKAGES}")
     print(f"Obstacles: ~{int(OBSTACLE_DENSITY * 100)}%")
+    print(f"Navigation: A* pathfinding")
     print("\n" + "-" * 60)
     print("CONTROLS:")
     print("  SPACE - Start/Pause simulation")
@@ -224,6 +225,7 @@ def run_simulation():
                     robot.path = []
                     robot.path_index = 0
                     robot.target_package = None
+                    robot.replan_count = 0
                 if metrics_collector:
                     metrics_collector.reset()
             else:
@@ -240,6 +242,8 @@ def run_simulation():
         print(f"Packages Collected: {final_stats['total_packages_collected']}")
         print(f"Total Distance: {final_stats['total_distance_traveled']}")
         print(f"Conflicts Resolved: {final_stats['conflicts_resolved']}")
+        print(f"Deadlocks Resolved: {final_stats.get('deadlocks_resolved', 0)}")
+        print(f"Path Replans: {final_stats.get('total_replans', 0)}")
         
         if final_stats['total_packages_collected'] > 0:
             avg_efficiency = final_stats['total_distance_traveled'] / final_stats['total_packages_collected']
@@ -247,9 +251,10 @@ def run_simulation():
         
         print("\nRobot Performance:")
         for robot_info in final_stats['robots']:
+            replan_info = f", {robot_info.get('replan_count', 0)} replans" if robot_info.get('replan_count', 0) > 0 else ""
             print(f"  Robot {robot_info['id']}: "
                   f"{robot_info['packages_collected']} packages, "
-                  f"{robot_info['distance_traveled']} distance")
+                  f"{robot_info['distance_traveled']} distance{replan_info}")
         
         # Generate reports if metrics were collected
         if metrics_collector and config.METRICS_ENABLED:

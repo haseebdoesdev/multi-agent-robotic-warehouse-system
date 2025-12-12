@@ -576,15 +576,15 @@ class RLTrainingUI:
             
             # Button label
             if btn_id == "train":
-                label = "■ Stop" if self.is_training else "▶ Train"
+                label = "Stop" if self.is_training else "Train"
             elif btn_id == "speed_label":
                 label = self.speed_labels[self.current_speed_idx]
             elif btn_id == "ep_label":
                 label = self._format_episodes(self.total_episodes)
             elif btn_id == "ep_up":
-                label = "▶"
+                label = ">"
             elif btn_id == "ep_down":
-                label = "◀"
+                label = "<"
             elif btn_id == "speed_up":
                     label = "+"
             elif btn_id == "speed_down":
